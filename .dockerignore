@@ -1,0 +1,7 @@
+.venv
+.tuner
+.pytest_cache
+.ruff_cache
+dist
+data
+**/__pycache__

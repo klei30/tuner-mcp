@@ -1,0 +1,5358 @@
+[
+  {
+    "name": "benchmarks_list",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "capabilities_get",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "live": {
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "checkpoint_delete",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tinker_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tinker_path"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": true,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "checkpoint_export",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tinker_path": {
+          "type": "string"
+        },
+        "format": {
+          "enum": [
+            "tinker_archive",
+            "peft",
+            "hf_merged"
+          ],
+          "type": "string"
+        },
+        "base_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "idempotency_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "tinker_path",
+        "format"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "checkpoint_get",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tinker_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tinker_path"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "checkpoint_list",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "training_run_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "training_run_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "checkpoint_publish",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tinker_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tinker_path"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "checkpoint_set_ttl",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tinker_path": {
+          "type": "string"
+        },
+        "ttl_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tinker_path",
+        "ttl_seconds"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "checkpoint_unpublish",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tinker_path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tinker_path"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "compare_runs",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseline_run_id": {
+          "type": "string"
+        },
+        "candidate_run_id": {
+          "type": "string"
+        },
+        "metric": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "minimize",
+                "maximize"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "baseline_run_id",
+        "candidate_run_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "compute_logprobs",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "target": {
+              "additionalProperties": false,
+              "properties": {
+                "model": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "checkpoint_path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "type": "object"
+            },
+            "prompt": {
+              "additionalProperties": false,
+              "properties": {
+                "messages": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "role": {
+                            "enum": [
+                              "system",
+                              "user",
+                              "assistant",
+                              "tool"
+                            ],
+                            "type": "string"
+                          },
+                          "content": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "type": {
+                                          "const": "text",
+                                          "type": "string"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "type": {
+                                          "const": "image",
+                                          "type": "string"
+                                        },
+                                        "image": {
+                                          "description": "Base64 data URI; remote URLs are not fetched",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "image"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "type": {
+                                          "const": "audio",
+                                          "type": "string"
+                                        },
+                                        "audio": {
+                                          "description": "Base64 data URI",
+                                          "type": "string"
+                                        },
+                                        "format": {
+                                          "default": "wav",
+                                          "enum": [
+                                            "wav",
+                                            "mp3",
+                                            "flac"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "num_frames": {
+                                          "anyOf": [
+                                            {
+                                              "exclusiveMinimum": 0,
+                                              "type": "integer"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "default": null
+                                        },
+                                        "sample_rate": {
+                                          "anyOf": [
+                                            {
+                                              "exclusiveMinimum": 0,
+                                              "type": "integer"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "default": null
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "audio"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "type": {
+                                          "const": "thinking",
+                                          "type": "string"
+                                        },
+                                        "thinking": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "thinking"
+                                      ],
+                                      "type": "object"
+                                    }
+                                  ]
+                                },
+                                "type": "array"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "tool_calls": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "type": {
+                                      "const": "function",
+                                      "default": "function",
+                                      "type": "string"
+                                    },
+                                    "id": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ],
+                                      "default": null
+                                    },
+                                    "function": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "name": {
+                                          "minLength": 1,
+                                          "type": "string"
+                                        },
+                                        "arguments": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "name",
+                                        "arguments"
+                                      ],
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          },
+                          "tool_call_id": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          },
+                          "name": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          },
+                          "unparsed_tool_calls": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          },
+                          "trainable": {
+                            "anyOf": [
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          }
+                        },
+                        "required": [
+                          "role",
+                          "content"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "token_ids": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "type": "object"
+            },
+            "renderer": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "target",
+            "prompt"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "dataset_fetch_hf",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "deduplicate": {
+              "default": false,
+              "type": "boolean"
+            },
+            "shuffle_seed": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "validation_records": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "input_field": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Context appended to the instruction"
+            },
+            "hf_repo": {
+              "description": "Hugging Face dataset repo, e.g. org/name",
+              "minLength": 1,
+              "type": "string"
+            },
+            "hf_revision": {
+              "description": "Pinned 40-character commit SHA",
+              "pattern": "^[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "hf_config": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional Hugging Face dataset configuration/name"
+            },
+            "hf_split": {
+              "default": "train",
+              "minLength": 1,
+              "type": "string"
+            },
+            "output_type": {
+              "default": "conversation_jsonl",
+              "enum": [
+                "conversation_jsonl",
+                "preference_jsonl",
+                "prompt_jsonl"
+              ],
+              "type": "string"
+            },
+            "message_field": {
+              "default": "messages",
+              "description": "Row field holding messages (or ShareGPT conversations)",
+              "minLength": 1,
+              "type": "string"
+            },
+            "user_field": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field for the user turn (instruction-style rows, e.g. 'instruction')"
+            },
+            "assistant_field": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field for the assistant turn (instruction-style rows, e.g. 'cmd')"
+            },
+            "max_records": {
+              "default": 10000,
+              "maximum": 1000000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "hf_repo",
+            "hf_revision"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "dataset_inspect",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "enum": [
+                "conversation_jsonl",
+                "preference_jsonl",
+                "prompt_jsonl",
+                "json",
+                "jsonl",
+                "prepared"
+              ],
+              "type": "string"
+            },
+            "path": {
+              "description": "Server-local path, or dataset_id for prepared data",
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "path"
+          ],
+          "type": "object"
+        },
+        "sample_size": {
+          "default": 3,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dataset"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "dataset_prepare",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "deduplicate": {
+              "default": false,
+              "type": "boolean"
+            },
+            "shuffle_seed": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "validation_records": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "input_field": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Context appended to the instruction"
+            },
+            "dataset": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "conversation_jsonl",
+                        "preference_jsonl",
+                        "prompt_jsonl",
+                        "json",
+                        "jsonl",
+                        "prepared"
+                      ],
+                      "type": "string"
+                    },
+                    "path": {
+                      "description": "Server-local path, or dataset_id for prepared data",
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "hf_repo": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "hf_revision": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "hf_config": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional Hugging Face dataset configuration/name"
+            },
+            "hf_split": {
+              "default": "train",
+              "type": "string"
+            },
+            "message_field": {
+              "default": "messages",
+              "type": "string"
+            },
+            "user_field": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field for the user turn (instruction-style rows, e.g. 'instruction')"
+            },
+            "assistant_field": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field for the assistant turn (instruction-style rows, e.g. 'cmd')"
+            },
+            "output_type": {
+              "default": "conversation_jsonl",
+              "enum": [
+                "conversation_jsonl",
+                "preference_jsonl",
+                "prompt_jsonl"
+              ],
+              "type": "string"
+            },
+            "max_records": {
+              "default": 10000,
+              "maximum": 1000000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "dataset_probe_hf",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "hf_repo": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "hf_revision": {
+              "pattern": "^[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            "hf_config": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "hf_split": {
+              "default": "train",
+              "minLength": 1,
+              "type": "string"
+            },
+            "sample_records": {
+              "default": 3,
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "hf_repo",
+            "hf_revision"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "dataset_render_preview",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "enum": [
+                    "conversation_jsonl",
+                    "preference_jsonl",
+                    "prompt_jsonl",
+                    "json",
+                    "jsonl",
+                    "prepared"
+                  ],
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Server-local path, or dataset_id for prepared data",
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "path"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "renderer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sample_size": {
+          "default": 2,
+          "type": "integer"
+        },
+        "plan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      }
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "dataset_search_hf",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "query": {
+              "default": "",
+              "description": "Hugging Face Hub dataset search query",
+              "type": "string"
+            },
+            "author": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Restrict results to one Hub org or user"
+            },
+            "tags": {
+              "description": "Hub tag filters, e.g. ['code', 'task:question-answering']",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 10,
+              "type": "array"
+            },
+            "sort": {
+              "default": "likes",
+              "enum": [
+                "likes",
+                "downloads",
+                "recent"
+              ],
+              "type": "string"
+            },
+            "limit": {
+              "default": 10,
+              "maximum": 25,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "dataset_validate",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "enum": [
+                "conversation_jsonl",
+                "preference_jsonl",
+                "prompt_jsonl",
+                "json",
+                "jsonl",
+                "prepared"
+              ],
+              "type": "string"
+            },
+            "path": {
+              "description": "Server-local path, or dataset_id for prepared data",
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "path"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "dataset"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "evaluate",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "target": {
+              "additionalProperties": false,
+              "properties": {
+                "model": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "checkpoint_path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "type": "object"
+            },
+            "dataset": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "conversation_jsonl",
+                        "preference_jsonl",
+                        "prompt_jsonl",
+                        "json",
+                        "jsonl",
+                        "prepared"
+                      ],
+                      "type": "string"
+                    },
+                    "path": {
+                      "description": "Server-local path, or dataset_id for prepared data",
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "scoring": {
+              "default": "exact_match",
+              "enum": [
+                "exact_match",
+                "normalized_exact",
+                "tool_calls"
+              ],
+              "type": "string"
+            },
+            "benchmark": {
+              "default": "gsm8k",
+              "type": "string"
+            },
+            "max_examples": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "max_tokens": {
+              "default": 4096,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "temperature": {
+              "default": 0.6,
+              "minimum": 0,
+              "type": "number"
+            },
+            "concurrency": {
+              "default": 16,
+              "maximum": 64,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "renderer": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "benchmarks": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20,
+              "type": "array"
+            },
+            "num_samples": {
+              "default": 1,
+              "maximum": 32,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "system_prompt": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "idempotency_key": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "target"
+          ],
+          "type": "object"
+        },
+        "background": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "evaluation_failures",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evaluation_id": {
+          "type": "string"
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer"
+        },
+        "limit": {
+          "default": 50,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "evaluation_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "evaluation_get",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evaluation_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "evaluation_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "experiment_artifacts",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cursor": {
+          "default": 0,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer"
+        },
+        "limit": {
+          "default": 100,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "experiment_autoplan",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "objective": {
+              "maxLength": 1000,
+              "minLength": 3,
+              "type": "string"
+            },
+            "task": {
+              "default": "auto",
+              "enum": [
+                "auto",
+                "tool_calling_sft",
+                "terminal_agent",
+                "code_reasoning",
+                "chat",
+                "math",
+                "audio",
+                "vision"
+              ],
+              "type": "string"
+            },
+            "dataset_query": {
+              "anyOf": [
+                {
+                  "maxLength": 300,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "hf_repo": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "hf_revision": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-fA-F]{40}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "hf_config": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "hf_split": {
+              "default": "train",
+              "type": "string"
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "recipe": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "constraints": {
+              "additionalProperties": false,
+              "properties": {
+                "max_model_params_billions": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "min_context_length": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "allow_gated_datasets": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "max_records": {
+                  "default": 10000,
+                  "maximum": 1000000,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "objective"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "experiment_rollouts",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "type": "string"
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer"
+        },
+        "limit": {
+          "default": 50,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "models_list",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "live": {
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "object_get",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "object_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "objects_list",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "dataset",
+            "plan",
+            "recipe_plan",
+            "experiment_plan"
+          ],
+          "type": "string"
+        },
+        "limit": {
+          "default": 20,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "recipe_get",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recipe": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "recipe"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "recipe_plan",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "description": "Exact Cookbook config values for one allowlisted recipe descriptor.",
+          "properties": {
+            "recipe": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            "max_duration_seconds": {
+              "default": 300,
+              "description": "Local orchestration deadline; submitted remote work may continue.",
+              "maximum": 86400,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "config": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "idempotency_key": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "recipe"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "recipe_start",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "plan_id",
+        "idempotency_key"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "recipes_list",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "sample",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "target": {
+              "additionalProperties": false,
+              "properties": {
+                "model": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "checkpoint_path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "type": "object"
+            },
+            "prompt": {
+              "additionalProperties": false,
+              "properties": {
+                "messages": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "role": {
+                            "enum": [
+                              "system",
+                              "user",
+                              "assistant",
+                              "tool"
+                            ],
+                            "type": "string"
+                          },
+                          "content": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "type": {
+                                          "const": "text",
+                                          "type": "string"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "text"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "type": {
+                                          "const": "image",
+                                          "type": "string"
+                                        },
+                                        "image": {
+                                          "description": "Base64 data URI; remote URLs are not fetched",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "image"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "type": {
+                                          "const": "audio",
+                                          "type": "string"
+                                        },
+                                        "audio": {
+                                          "description": "Base64 data URI",
+                                          "type": "string"
+                                        },
+                                        "format": {
+                                          "default": "wav",
+                                          "enum": [
+                                            "wav",
+                                            "mp3",
+                                            "flac"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "num_frames": {
+                                          "anyOf": [
+                                            {
+                                              "exclusiveMinimum": 0,
+                                              "type": "integer"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "default": null
+                                        },
+                                        "sample_rate": {
+                                          "anyOf": [
+                                            {
+                                              "exclusiveMinimum": 0,
+                                              "type": "integer"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ],
+                                          "default": null
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "audio"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "type": {
+                                          "const": "thinking",
+                                          "type": "string"
+                                        },
+                                        "thinking": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "thinking"
+                                      ],
+                                      "type": "object"
+                                    }
+                                  ]
+                                },
+                                "type": "array"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "tool_calls": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "type": {
+                                      "const": "function",
+                                      "default": "function",
+                                      "type": "string"
+                                    },
+                                    "id": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ],
+                                      "default": null
+                                    },
+                                    "function": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "name": {
+                                          "minLength": 1,
+                                          "type": "string"
+                                        },
+                                        "arguments": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "name",
+                                        "arguments"
+                                      ],
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "function"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          },
+                          "tool_call_id": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          },
+                          "name": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          },
+                          "unparsed_tool_calls": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          },
+                          "trainable": {
+                            "anyOf": [
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          }
+                        },
+                        "required": [
+                          "role",
+                          "content"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "token_ids": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "type": "object"
+            },
+            "sampling": {
+              "additionalProperties": false,
+              "properties": {
+                "max_tokens": {
+                  "default": 512,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "temperature": {
+                  "default": 0.7,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "top_p": {
+                  "default": 1.0,
+                  "exclusiveMinimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "top_k": {
+                  "default": -1,
+                  "minimum": -1,
+                  "type": "integer"
+                },
+                "seed": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "stop": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "type": "object"
+            },
+            "num_samples": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "include_logprobs": {
+              "default": false,
+              "type": "boolean"
+            },
+            "renderer": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "target",
+            "prompt"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "session_get",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "session_trace_export",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "sessions_list",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 20,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer"
+        }
+      }
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "train_distill",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "distill",
+              "default": "distill",
+              "type": "string"
+            },
+            "model": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "dataset": {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "enum": [
+                    "conversation_jsonl",
+                    "preference_jsonl",
+                    "prompt_jsonl",
+                    "json",
+                    "jsonl",
+                    "prepared"
+                  ],
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Server-local path, or dataset_id for prepared data",
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "path"
+              ],
+              "type": "object"
+            },
+            "training": {
+              "additionalProperties": false,
+              "properties": {
+                "max_steps": {
+                  "default": 100,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "batch_size": {
+                  "default": 8,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "learning_rate": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "lora_rank": {
+                  "default": 32,
+                  "maximum": 512,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "num_epochs": {
+                  "default": 1,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "max_length": {
+                  "default": 32768,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "renderer": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "train_on": {
+                  "default": "all_assistant",
+                  "enum": [
+                    "all_assistant",
+                    "last_assistant",
+                    "all_tokens",
+                    "last_assistant_turn",
+                    "all_messages",
+                    "all_user_and_system_messages",
+                    "customized"
+                  ],
+                  "type": "string"
+                },
+                "test_size": {
+                  "default": 0,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "shuffle_seed": {
+                  "default": 0,
+                  "type": "integer"
+                },
+                "lr_schedule": {
+                  "default": "linear",
+                  "enum": [
+                    "linear",
+                    "cosine",
+                    "constant"
+                  ],
+                  "type": "string"
+                },
+                "adam_beta1": {
+                  "default": 0.9,
+                  "exclusiveMaximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "adam_beta2": {
+                  "default": 0.95,
+                  "exclusiveMaximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "adam_eps": {
+                  "default": 1e-08,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "load_checkpoint_path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "wandb_project": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "wandb_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "enable_trace": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "checkpointing": {
+              "additionalProperties": false,
+              "properties": {
+                "every_steps": {
+                  "default": 20,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "ttl_seconds": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": 604800
+                },
+                "every_tokens": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "every_seconds": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "rolling_every": {
+                  "default": 0,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "rolling_ttl_seconds": {
+                  "default": 86400,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "async_periodic_saves": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "evaluation": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "benchmark": {
+                  "default": "gsm8k",
+                  "type": "string"
+                },
+                "every_steps": {
+                  "default": 20,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "max_examples": {
+                  "default": 20,
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_tokens": {
+                  "default": 4096,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "distillation": {
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "default": "on_policy",
+                  "enum": [
+                    "on_policy",
+                    "off_policy"
+                  ],
+                  "type": "string"
+                },
+                "teacher": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "model": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "checkpoint_path": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "required": [
+                    "model"
+                  ],
+                  "type": "object"
+                },
+                "max_tokens": {
+                  "default": 1024,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "temperature": {
+                  "default": 1.0,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "group_size": {
+                  "default": 4,
+                  "maximum": 64,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "kl_penalty_coef": {
+                  "default": 1.0,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "teacher_concurrency": {
+                  "default": 16,
+                  "maximum": 128,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "n_teacher_targets": {
+                  "default": 20,
+                  "maximum": 128,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "teacher"
+              ],
+              "type": "object"
+            },
+            "idempotency_key": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "model",
+            "dataset",
+            "distillation"
+          ],
+          "type": "object"
+        },
+        "background": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": null
+  },
+  {
+    "name": "train_dpo",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "dpo",
+              "default": "dpo",
+              "type": "string"
+            },
+            "model": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "dataset": {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "enum": [
+                    "conversation_jsonl",
+                    "preference_jsonl",
+                    "prompt_jsonl",
+                    "json",
+                    "jsonl",
+                    "prepared"
+                  ],
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Server-local path, or dataset_id for prepared data",
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "path"
+              ],
+              "type": "object"
+            },
+            "training": {
+              "additionalProperties": false,
+              "properties": {
+                "max_steps": {
+                  "default": 100,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "batch_size": {
+                  "default": 8,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "learning_rate": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "lora_rank": {
+                  "default": 32,
+                  "maximum": 512,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "num_epochs": {
+                  "default": 1,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "max_length": {
+                  "default": 32768,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "renderer": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "train_on": {
+                  "default": "all_assistant",
+                  "enum": [
+                    "all_assistant",
+                    "last_assistant",
+                    "all_tokens",
+                    "last_assistant_turn",
+                    "all_messages",
+                    "all_user_and_system_messages",
+                    "customized"
+                  ],
+                  "type": "string"
+                },
+                "test_size": {
+                  "default": 0,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "shuffle_seed": {
+                  "default": 0,
+                  "type": "integer"
+                },
+                "lr_schedule": {
+                  "default": "linear",
+                  "enum": [
+                    "linear",
+                    "cosine",
+                    "constant"
+                  ],
+                  "type": "string"
+                },
+                "adam_beta1": {
+                  "default": 0.9,
+                  "exclusiveMaximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "adam_beta2": {
+                  "default": 0.95,
+                  "exclusiveMaximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "adam_eps": {
+                  "default": 1e-08,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "load_checkpoint_path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "wandb_project": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "wandb_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "enable_trace": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "checkpointing": {
+              "additionalProperties": false,
+              "properties": {
+                "every_steps": {
+                  "default": 20,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "ttl_seconds": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": 604800
+                },
+                "every_tokens": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "every_seconds": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "rolling_every": {
+                  "default": 0,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "rolling_ttl_seconds": {
+                  "default": 86400,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "async_periodic_saves": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "evaluation": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "benchmark": {
+                  "default": "gsm8k",
+                  "type": "string"
+                },
+                "every_steps": {
+                  "default": 20,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "max_examples": {
+                  "default": 20,
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_tokens": {
+                  "default": 4096,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "dpo": {
+              "additionalProperties": false,
+              "properties": {
+                "beta": {
+                  "default": 0.1,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "reference_model": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "num_replicas": {
+                  "default": 1,
+                  "maximum": 8,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "idempotency_key": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "model",
+            "dataset"
+          ],
+          "type": "object"
+        },
+        "background": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": null
+  },
+  {
+    "name": "train_rl",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "rl",
+              "default": "rl",
+              "type": "string"
+            },
+            "model": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "recipe": {
+              "default": "arithmetic",
+              "enum": [
+                "arithmetic",
+                "gsm8k",
+                "math",
+                "polaris",
+                "deepmath"
+              ],
+              "type": "string"
+            },
+            "training": {
+              "additionalProperties": false,
+              "properties": {
+                "max_steps": {
+                  "default": 100,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "batch_size": {
+                  "default": 8,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "learning_rate": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "lora_rank": {
+                  "default": 32,
+                  "maximum": 512,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "num_epochs": {
+                  "default": 1,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "max_length": {
+                  "default": 32768,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "renderer": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "train_on": {
+                  "default": "all_assistant",
+                  "enum": [
+                    "all_assistant",
+                    "last_assistant",
+                    "all_tokens",
+                    "last_assistant_turn",
+                    "all_messages",
+                    "all_user_and_system_messages",
+                    "customized"
+                  ],
+                  "type": "string"
+                },
+                "test_size": {
+                  "default": 0,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "shuffle_seed": {
+                  "default": 0,
+                  "type": "integer"
+                },
+                "lr_schedule": {
+                  "default": "linear",
+                  "enum": [
+                    "linear",
+                    "cosine",
+                    "constant"
+                  ],
+                  "type": "string"
+                },
+                "adam_beta1": {
+                  "default": 0.9,
+                  "exclusiveMaximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "adam_beta2": {
+                  "default": 0.95,
+                  "exclusiveMaximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "adam_eps": {
+                  "default": 1e-08,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "load_checkpoint_path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "wandb_project": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "wandb_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "enable_trace": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "checkpointing": {
+              "additionalProperties": false,
+              "properties": {
+                "every_steps": {
+                  "default": 20,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "ttl_seconds": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": 604800
+                },
+                "every_tokens": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "every_seconds": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "rolling_every": {
+                  "default": 0,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "rolling_ttl_seconds": {
+                  "default": 86400,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "async_periodic_saves": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "evaluation": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "benchmark": {
+                  "default": "gsm8k",
+                  "type": "string"
+                },
+                "every_steps": {
+                  "default": 20,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "max_examples": {
+                  "default": 20,
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_tokens": {
+                  "default": 4096,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "rl": {
+              "additionalProperties": false,
+              "properties": {
+                "group_size": {
+                  "default": 4,
+                  "maximum": 64,
+                  "minimum": 2,
+                  "type": "integer"
+                },
+                "groups_per_batch": {
+                  "default": 8,
+                  "maximum": 1024,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_tokens": {
+                  "default": 1024,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "temperature": {
+                  "default": 1.0,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "kl_penalty_coef": {
+                  "default": 0.0,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "kl_discount_factor": {
+                  "default": 0.0,
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "num_substeps": {
+                  "default": 1,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_steps_off_policy": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "loss_fn": {
+                  "default": "importance_sampling",
+                  "enum": [
+                    "importance_sampling",
+                    "ppo",
+                    "cispo",
+                    "dro"
+                  ],
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "idempotency_key": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "model"
+          ],
+          "type": "object"
+        },
+        "background": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": null
+  },
+  {
+    "name": "train_sft",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "const": "sft",
+              "default": "sft",
+              "type": "string"
+            },
+            "model": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "dataset": {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "enum": [
+                    "conversation_jsonl",
+                    "preference_jsonl",
+                    "prompt_jsonl",
+                    "json",
+                    "jsonl",
+                    "prepared"
+                  ],
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Server-local path, or dataset_id for prepared data",
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "path"
+              ],
+              "type": "object"
+            },
+            "training": {
+              "additionalProperties": false,
+              "properties": {
+                "max_steps": {
+                  "default": 100,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "batch_size": {
+                  "default": 8,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "learning_rate": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "lora_rank": {
+                  "default": 32,
+                  "maximum": 512,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "num_epochs": {
+                  "default": 1,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "max_length": {
+                  "default": 32768,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "renderer": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "train_on": {
+                  "default": "all_assistant",
+                  "enum": [
+                    "all_assistant",
+                    "last_assistant",
+                    "all_tokens",
+                    "last_assistant_turn",
+                    "all_messages",
+                    "all_user_and_system_messages",
+                    "customized"
+                  ],
+                  "type": "string"
+                },
+                "test_size": {
+                  "default": 0,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "shuffle_seed": {
+                  "default": 0,
+                  "type": "integer"
+                },
+                "lr_schedule": {
+                  "default": "linear",
+                  "enum": [
+                    "linear",
+                    "cosine",
+                    "constant"
+                  ],
+                  "type": "string"
+                },
+                "adam_beta1": {
+                  "default": 0.9,
+                  "exclusiveMaximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "adam_beta2": {
+                  "default": 0.95,
+                  "exclusiveMaximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "adam_eps": {
+                  "default": 1e-08,
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                "load_checkpoint_path": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "wandb_project": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "wandb_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "enable_trace": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "checkpointing": {
+              "additionalProperties": false,
+              "properties": {
+                "every_steps": {
+                  "default": 20,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "ttl_seconds": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": 604800
+                },
+                "every_tokens": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "every_seconds": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "rolling_every": {
+                  "default": 0,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "rolling_ttl_seconds": {
+                  "default": 86400,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "async_periodic_saves": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "evaluation": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "benchmark": {
+                  "default": "gsm8k",
+                  "type": "string"
+                },
+                "every_steps": {
+                  "default": 20,
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "max_examples": {
+                  "default": 20,
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "max_tokens": {
+                  "default": 4096,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "idempotency_key": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "model",
+            "dataset"
+          ],
+          "type": "object"
+        },
+        "background": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": null
+  },
+  {
+    "name": "training_get",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "type": "string"
+        },
+        "source": {
+          "default": "auto",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "training_list",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "default": 20,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer"
+        },
+        "source": {
+          "default": "tinker",
+          "type": "string"
+        }
+      }
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "training_logs",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "type": "string"
+        },
+        "max_lines": {
+          "default": 200,
+          "type": "integer"
+        },
+        "artifact_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cursor": {
+          "default": 0,
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "training_metrics",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "type": "string"
+        },
+        "limit": {
+          "default": 1000,
+          "type": "integer"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "artifact_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "run_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "training_plan",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "method": {
+                  "const": "sft",
+                  "default": "sft",
+                  "type": "string"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "dataset": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "conversation_jsonl",
+                        "preference_jsonl",
+                        "prompt_jsonl",
+                        "json",
+                        "jsonl",
+                        "prepared"
+                      ],
+                      "type": "string"
+                    },
+                    "path": {
+                      "description": "Server-local path, or dataset_id for prepared data",
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                "training": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "max_steps": {
+                      "default": 100,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "batch_size": {
+                      "default": 8,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "learning_rate": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "lora_rank": {
+                      "default": 32,
+                      "maximum": 512,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "num_epochs": {
+                      "default": 1,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "max_length": {
+                      "default": 32768,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "renderer": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "train_on": {
+                      "default": "all_assistant",
+                      "enum": [
+                        "all_assistant",
+                        "last_assistant",
+                        "all_tokens",
+                        "last_assistant_turn",
+                        "all_messages",
+                        "all_user_and_system_messages",
+                        "customized"
+                      ],
+                      "type": "string"
+                    },
+                    "test_size": {
+                      "default": 0,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "shuffle_seed": {
+                      "default": 0,
+                      "type": "integer"
+                    },
+                    "lr_schedule": {
+                      "default": "linear",
+                      "enum": [
+                        "linear",
+                        "cosine",
+                        "constant"
+                      ],
+                      "type": "string"
+                    },
+                    "adam_beta1": {
+                      "default": 0.9,
+                      "exclusiveMaximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "adam_beta2": {
+                      "default": 0.95,
+                      "exclusiveMaximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "adam_eps": {
+                      "default": 1e-08,
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    "load_checkpoint_path": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "wandb_project": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "wandb_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "enable_trace": {
+                      "default": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "checkpointing": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "every_steps": {
+                      "default": 20,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "ttl_seconds": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": 604800
+                    },
+                    "every_tokens": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "every_seconds": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "rolling_every": {
+                      "default": 0,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "rolling_ttl_seconds": {
+                      "default": 86400,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "async_periodic_saves": {
+                      "default": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "evaluation": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "enabled": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "benchmark": {
+                      "default": "gsm8k",
+                      "type": "string"
+                    },
+                    "every_steps": {
+                      "default": 20,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "max_examples": {
+                      "default": 20,
+                      "maximum": 100,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "max_tokens": {
+                      "default": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                },
+                "idempotency_key": {
+                  "anyOf": [
+                    {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "model",
+                "dataset"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "method": {
+                  "const": "dpo",
+                  "default": "dpo",
+                  "type": "string"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "dataset": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "conversation_jsonl",
+                        "preference_jsonl",
+                        "prompt_jsonl",
+                        "json",
+                        "jsonl",
+                        "prepared"
+                      ],
+                      "type": "string"
+                    },
+                    "path": {
+                      "description": "Server-local path, or dataset_id for prepared data",
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                "training": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "max_steps": {
+                      "default": 100,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "batch_size": {
+                      "default": 8,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "learning_rate": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "lora_rank": {
+                      "default": 32,
+                      "maximum": 512,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "num_epochs": {
+                      "default": 1,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "max_length": {
+                      "default": 32768,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "renderer": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "train_on": {
+                      "default": "all_assistant",
+                      "enum": [
+                        "all_assistant",
+                        "last_assistant",
+                        "all_tokens",
+                        "last_assistant_turn",
+                        "all_messages",
+                        "all_user_and_system_messages",
+                        "customized"
+                      ],
+                      "type": "string"
+                    },
+                    "test_size": {
+                      "default": 0,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "shuffle_seed": {
+                      "default": 0,
+                      "type": "integer"
+                    },
+                    "lr_schedule": {
+                      "default": "linear",
+                      "enum": [
+                        "linear",
+                        "cosine",
+                        "constant"
+                      ],
+                      "type": "string"
+                    },
+                    "adam_beta1": {
+                      "default": 0.9,
+                      "exclusiveMaximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "adam_beta2": {
+                      "default": 0.95,
+                      "exclusiveMaximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "adam_eps": {
+                      "default": 1e-08,
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    "load_checkpoint_path": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "wandb_project": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "wandb_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "enable_trace": {
+                      "default": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "checkpointing": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "every_steps": {
+                      "default": 20,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "ttl_seconds": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": 604800
+                    },
+                    "every_tokens": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "every_seconds": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "rolling_every": {
+                      "default": 0,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "rolling_ttl_seconds": {
+                      "default": 86400,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "async_periodic_saves": {
+                      "default": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "evaluation": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "enabled": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "benchmark": {
+                      "default": "gsm8k",
+                      "type": "string"
+                    },
+                    "every_steps": {
+                      "default": 20,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "max_examples": {
+                      "default": 20,
+                      "maximum": 100,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "max_tokens": {
+                      "default": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                },
+                "dpo": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "beta": {
+                      "default": 0.1,
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    "reference_model": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "num_replicas": {
+                      "default": 1,
+                      "maximum": 8,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                },
+                "idempotency_key": {
+                  "anyOf": [
+                    {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "model",
+                "dataset"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "method": {
+                  "const": "rl",
+                  "default": "rl",
+                  "type": "string"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "recipe": {
+                  "default": "arithmetic",
+                  "enum": [
+                    "arithmetic",
+                    "gsm8k",
+                    "math",
+                    "polaris",
+                    "deepmath"
+                  ],
+                  "type": "string"
+                },
+                "training": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "max_steps": {
+                      "default": 100,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "batch_size": {
+                      "default": 8,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "learning_rate": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "lora_rank": {
+                      "default": 32,
+                      "maximum": 512,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "num_epochs": {
+                      "default": 1,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "max_length": {
+                      "default": 32768,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "renderer": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "train_on": {
+                      "default": "all_assistant",
+                      "enum": [
+                        "all_assistant",
+                        "last_assistant",
+                        "all_tokens",
+                        "last_assistant_turn",
+                        "all_messages",
+                        "all_user_and_system_messages",
+                        "customized"
+                      ],
+                      "type": "string"
+                    },
+                    "test_size": {
+                      "default": 0,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "shuffle_seed": {
+                      "default": 0,
+                      "type": "integer"
+                    },
+                    "lr_schedule": {
+                      "default": "linear",
+                      "enum": [
+                        "linear",
+                        "cosine",
+                        "constant"
+                      ],
+                      "type": "string"
+                    },
+                    "adam_beta1": {
+                      "default": 0.9,
+                      "exclusiveMaximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "adam_beta2": {
+                      "default": 0.95,
+                      "exclusiveMaximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "adam_eps": {
+                      "default": 1e-08,
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    "load_checkpoint_path": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "wandb_project": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "wandb_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "enable_trace": {
+                      "default": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "checkpointing": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "every_steps": {
+                      "default": 20,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "ttl_seconds": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": 604800
+                    },
+                    "every_tokens": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "every_seconds": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "rolling_every": {
+                      "default": 0,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "rolling_ttl_seconds": {
+                      "default": 86400,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "async_periodic_saves": {
+                      "default": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "evaluation": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "enabled": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "benchmark": {
+                      "default": "gsm8k",
+                      "type": "string"
+                    },
+                    "every_steps": {
+                      "default": 20,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "max_examples": {
+                      "default": 20,
+                      "maximum": 100,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "max_tokens": {
+                      "default": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                },
+                "rl": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "group_size": {
+                      "default": 4,
+                      "maximum": 64,
+                      "minimum": 2,
+                      "type": "integer"
+                    },
+                    "groups_per_batch": {
+                      "default": 8,
+                      "maximum": 1024,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "max_tokens": {
+                      "default": 1024,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "temperature": {
+                      "default": 1.0,
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    "kl_penalty_coef": {
+                      "default": 0.0,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "kl_discount_factor": {
+                      "default": 0.0,
+                      "maximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "num_substeps": {
+                      "default": 1,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "max_steps_off_policy": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "loss_fn": {
+                      "default": "importance_sampling",
+                      "enum": [
+                        "importance_sampling",
+                        "ppo",
+                        "cispo",
+                        "dro"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "idempotency_key": {
+                  "anyOf": [
+                    {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "model"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "method": {
+                  "const": "distill",
+                  "default": "distill",
+                  "type": "string"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "dataset": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "conversation_jsonl",
+                        "preference_jsonl",
+                        "prompt_jsonl",
+                        "json",
+                        "jsonl",
+                        "prepared"
+                      ],
+                      "type": "string"
+                    },
+                    "path": {
+                      "description": "Server-local path, or dataset_id for prepared data",
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "path"
+                  ],
+                  "type": "object"
+                },
+                "training": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "max_steps": {
+                      "default": 100,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "batch_size": {
+                      "default": 8,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "learning_rate": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "lora_rank": {
+                      "default": 32,
+                      "maximum": 512,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "num_epochs": {
+                      "default": 1,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "max_length": {
+                      "default": 32768,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "renderer": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "train_on": {
+                      "default": "all_assistant",
+                      "enum": [
+                        "all_assistant",
+                        "last_assistant",
+                        "all_tokens",
+                        "last_assistant_turn",
+                        "all_messages",
+                        "all_user_and_system_messages",
+                        "customized"
+                      ],
+                      "type": "string"
+                    },
+                    "test_size": {
+                      "default": 0,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "shuffle_seed": {
+                      "default": 0,
+                      "type": "integer"
+                    },
+                    "lr_schedule": {
+                      "default": "linear",
+                      "enum": [
+                        "linear",
+                        "cosine",
+                        "constant"
+                      ],
+                      "type": "string"
+                    },
+                    "adam_beta1": {
+                      "default": 0.9,
+                      "exclusiveMaximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "adam_beta2": {
+                      "default": 0.95,
+                      "exclusiveMaximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "adam_eps": {
+                      "default": 1e-08,
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    "load_checkpoint_path": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "wandb_project": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "wandb_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "enable_trace": {
+                      "default": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "checkpointing": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "every_steps": {
+                      "default": 20,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "ttl_seconds": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": 604800
+                    },
+                    "every_tokens": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "every_seconds": {
+                      "anyOf": [
+                        {
+                          "exclusiveMinimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "rolling_every": {
+                      "default": 0,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "rolling_ttl_seconds": {
+                      "default": 86400,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "async_periodic_saves": {
+                      "default": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "evaluation": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "enabled": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "benchmark": {
+                      "default": "gsm8k",
+                      "type": "string"
+                    },
+                    "every_steps": {
+                      "default": 20,
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "max_examples": {
+                      "default": 20,
+                      "maximum": 100,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "max_tokens": {
+                      "default": 4096,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                },
+                "distillation": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "mode": {
+                      "default": "on_policy",
+                      "enum": [
+                        "on_policy",
+                        "off_policy"
+                      ],
+                      "type": "string"
+                    },
+                    "teacher": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "model": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "checkpoint_path": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null
+                        }
+                      },
+                      "required": [
+                        "model"
+                      ],
+                      "type": "object"
+                    },
+                    "max_tokens": {
+                      "default": 1024,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "temperature": {
+                      "default": 1.0,
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    "group_size": {
+                      "default": 4,
+                      "maximum": 64,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "kl_penalty_coef": {
+                      "default": 1.0,
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    "teacher_concurrency": {
+                      "default": 16,
+                      "maximum": 128,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "n_teacher_targets": {
+                      "default": 20,
+                      "maximum": 128,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "teacher"
+                  ],
+                  "type": "object"
+                },
+                "idempotency_key": {
+                  "anyOf": [
+                    {
+                      "maxLength": 200,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "model",
+                "dataset",
+                "distillation"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "objective": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "training_resume",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "max_steps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "num_epochs": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "additional_steps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "run_id",
+        "idempotency_key"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "training_start",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "plan_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "plan_id",
+        "idempotency_key"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "training_stop",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": false,
+      "destructive_hint": null,
+      "idempotent_hint": true,
+      "open_world_hint": null
+    }
+  },
+  {
+    "name": "usage_get",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "starting_on": {
+          "type": "string"
+        },
+        "ending_before": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "starting_on",
+        "ending_before"
+      ]
+    },
+    "annotations": {
+      "title": null,
+      "read_only_hint": true,
+      "destructive_hint": null,
+      "idempotent_hint": null,
+      "open_world_hint": null
+    }
+  }
+]

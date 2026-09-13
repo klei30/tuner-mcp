@@ -1,0 +1,32 @@
+services:
+  tuner:
+    container_name: tuner-mcp-http
+    build: .
+    image: tuner-mcp:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8000"
+    environment:
+      TINKER_API_KEY: ${TINKER_API_KEY:?Set TINKER_API_KEY in your environment}
+      TUNER_AUTH_TOKEN: ${TUNER_AUTH_TOKEN:?Set a 32+ character TUNER_AUTH_TOKEN}
+      TUNER_ALLOWED_ROOTS: /data
+      TUNER_TASK_URL: redis://tuner-test-redis:6379/0
+    volumes:
+      - ../data:/data:ro
+      - tuner-state:/var/lib/tuner
+      - tuner-harbor-cache:/home/tuner/.cache/harbor
+    networks:
+      - tuner-redis
+
+volumes:
+  tuner-state:
+    external: true
+    name: tuner-state
+  tuner-harbor-cache:
+    external: true
+    name: tuner-harbor-cache
+
+networks:
+  tuner-redis:
+    external: true
+    name: tuner-mcp-network

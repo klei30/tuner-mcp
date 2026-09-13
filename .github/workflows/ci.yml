@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.5.18"
+          python-version: "3.11"
+      - run: uv sync --frozen
+      - name: Check out pinned Cookbook for source contract tests
+        run: |
+          git clone https://github.com/thinking-machines-lab/tinker-cookbook ../tinker-cookbook
+          git -C ../tinker-cookbook checkout 1f962eda3a2cec8de284725f2adc9978e93dfcd3
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pyright
+      - run: uv run pytest -m "not integration"
+      - run: uv build

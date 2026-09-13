@@ -1,0 +1,35 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  tuner:
+    build: .
+    image: ghcr.io/klei30/tuner-mcp:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8000"
+    environment:
+      TINKER_API_KEY: ${TINKER_API_KEY:?Set TINKER_API_KEY in your environment}
+      TUNER_AUTH_TOKEN: ${TUNER_AUTH_TOKEN:?Set a 32+ character TUNER_AUTH_TOKEN}
+      TUNER_ALLOWED_ROOTS: /data
+      TUNER_TASK_URL: redis://redis:6379/0
+    volumes:
+      - ./data:/data:ro
+      - tuner-state:/var/lib/tuner
+      - tuner-cache:/home/tuner/.cache
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis-data:
+  tuner-state:
+  tuner-cache:

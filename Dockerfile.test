@@ -1,0 +1,13 @@
+ARG RUNTIME_IMAGE=tuner-mcp:candidate
+FROM ${RUNTIME_IMAGE}
+USER root
+# Resolve the dev group from exactly the production lock and dependencies.
+RUN uv sync --frozen --group dev
+COPY src /app/src
+COPY tests /work/tuner/tests
+COPY pyproject.toml /work/tuner/pyproject.toml
+USER tuner
+WORKDIR /work/tuner
+ENV TINKER_API_KEY="" TUNER_STATE_DIR=/tmp/tuner-test-state
+# Mount the pinned sibling cookbook at /work/tinker-cookbook for AST drift tests.
+CMD ["/app/.venv/bin/python", "-m", "pytest", "-q", "-p", "no:cacheprovider", "-m", "not integration"]

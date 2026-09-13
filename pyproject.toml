@@ -1,0 +1,82 @@
+[project]
+name = "tuner-mcp"
+version = "0.1.0"
+description = "Independent agent-native MCP control plane for Tinker post-training workflows"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+keywords = ["mcp", "tinker", "finetuning", "llm", "post-training"]
+dependencies = [
+    "datasets>=4.5,<5",
+    "fastmcp[tasks]==4.0.3",
+    "ifbench",
+    "pydantic>=2.11,<3",
+    "tinker>=0.27.2,<0.28",
+    "tinker-cookbook[all]",
+    "torch>=2.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/klei30/tuner-mcp"
+Documentation = "https://github.com/klei30/tuner-mcp#readme"
+Issues = "https://github.com/klei30/tuner-mcp/issues"
+Source = "https://github.com/klei30/tuner-mcp"
+
+[project.scripts]
+tuner = "tuner.server:main"
+tuner-discover = "tuner.discovery:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "ruff>=0.12",
+    "pyright>=1.1.408",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tuner"]
+
+[tool.uv]
+managed = true
+required-version = ">=0.5.0"
+
+[tool.uv.sources]
+tinker = { git = "https://github.com/thinking-machines-lab/tinker", rev = "b08b242bae3f916ef82e17cde08faf2c4945e8b2" }
+tinker-cookbook = { git = "https://github.com/thinking-machines-lab/tinker-cookbook", rev = "1f962eda3a2cec8de284725f2adc9978e93dfcd3" }
+ifbench = { git = "https://github.com/allenai/IFBench.git", rev = "1c40f0c10d9b5c5c2f10a175a28007ebb64f7f4d" }
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: requires TINKER_API_KEY and may incur Tinker charges",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+extraPaths = ["src", "../tinker-cookbook"]
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastmcp_tasks.dependencies.CurrentDocket"]
