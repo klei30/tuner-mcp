@@ -15,7 +15,7 @@ checkpoints, and experiment comparison.
 > Tinker Cookbook. It is not affiliated with or endorsed by Thinking Machines Lab.
 
 Prefer a visual workflow? [Tuner UI](https://github.com/klei30/tuner-ui) is the
-first-party browser interface and is being connected to this control plane.
+first-party browser interface and delegates live training to this control plane.
 
 ## Use cases
 
