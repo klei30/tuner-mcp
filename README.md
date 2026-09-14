@@ -123,6 +123,7 @@ Run the authenticated HTTP server with Docker Compose:
 
 ```powershell
 $env:TINKER_API_KEY = "..."
+$env:HF_TOKEN = "..." # optional; increases Hugging Face download limits
 $env:TUNER_AUTH_TOKEN = "<a-random-token-at-least-32-characters-long>"
 docker compose -f compose.standalone.yaml up --build -d
 ```

@@ -26,6 +26,8 @@ async def main() -> None:
             "-e",
             "TINKER_API_KEY",
             "-e",
+            "HF_TOKEN",
+            "-e",
             "TUNER_ALLOWED_ROOTS=/data",
             "-e",
             "TUNER_TASK_URL=redis://tuner-test-redis:6379/0",

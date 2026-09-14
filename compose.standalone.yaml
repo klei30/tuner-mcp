@@ -18,6 +18,7 @@ services:
       - "127.0.0.1:8765:8000"
     environment:
       TINKER_API_KEY: ${TINKER_API_KEY:?Set TINKER_API_KEY in your environment}
+      HF_TOKEN: ${HF_TOKEN:-}
       TUNER_AUTH_TOKEN: ${TUNER_AUTH_TOKEN:?Set a 32+ character TUNER_AUTH_TOKEN}
       TUNER_ALLOWED_ROOTS: /data
       TUNER_TASK_URL: redis://redis:6379/0
