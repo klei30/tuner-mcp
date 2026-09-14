@@ -7,6 +7,7 @@ LABEL org.opencontainers.image.source="https://github.com/klei30/tuner-mcp" \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     GIT_TERMINAL_PROMPT=0 \
+    UV_LINK_MODE=copy \
     TUNER_TRANSPORT=http \
     TUNER_HOST=0.0.0.0 \
     TUNER_PORT=8000 \

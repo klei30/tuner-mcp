@@ -13,8 +13,20 @@ $tunerPrevious = $env:TUNER_MCP_AUTH_TOKEN
 try {
     $tunerAuthHeaders = & "$PSScriptRoot/codex_headers.ps1" | ConvertFrom-Json
     $env:TUNER_MCP_AUTH_TOKEN = $tunerAuthHeaders.Authorization.Substring(7)
-    & "$tunerProject/.venv/Scripts/python.exe" "$PSScriptRoot/check_http.py"
-    if ($LASTEXITCODE -ne 0) { throw 'Authenticated MCP protocol check failed.' }
+    $tunerProtocolReady = $false
+    for ($tunerAttempt = 1; $tunerAttempt -le 6; $tunerAttempt++) {
+        if ($tunerAttempt -lt 6) {
+            & "$tunerProject/.venv/Scripts/python.exe" "$PSScriptRoot/check_http.py" 2>$null
+        } else {
+            & "$tunerProject/.venv/Scripts/python.exe" "$PSScriptRoot/check_http.py"
+        }
+        if ($LASTEXITCODE -eq 0) {
+            $tunerProtocolReady = $true
+            break
+        }
+        if ($tunerAttempt -lt 6) { Start-Sleep -Seconds 3 }
+    }
+    if (-not $tunerProtocolReady) { throw 'Authenticated MCP protocol check failed.' }
 } finally {
     $env:TUNER_MCP_AUTH_TOKEN = $tunerPrevious
 }

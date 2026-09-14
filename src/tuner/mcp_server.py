@@ -306,8 +306,9 @@ def create_server(
                 "train_distill",
                 "recipe_start",
                 "evaluate",
+                "checkpoint_export",
             ],
-            "background_submission": "training_start or background=true",
+            "background_submission": "training_start, recipe_start, or background=true",
             "dataset_types": [
                 "conversation_jsonl",
                 "preference_jsonl",

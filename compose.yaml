@@ -15,6 +15,7 @@ services:
       - ../data:/data:ro
       - tuner-state:/var/lib/tuner
       - tuner-harbor-cache:/home/tuner/.cache/harbor
+      - tuner-model-cache:/home/tuner/.cache/huggingface
     networks:
       - tuner-redis
 
@@ -25,6 +26,7 @@ volumes:
   tuner-harbor-cache:
     external: true
     name: tuner-harbor-cache
+  tuner-model-cache:
 
 networks:
   tuner-redis:

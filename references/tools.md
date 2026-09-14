@@ -69,7 +69,7 @@ This catalog covers the 48 tools exposed by the current server. Runtime MCP sche
 | `checkpoint_list` | List training and sampler checkpoints for a remote Tinker training run. |
 | `checkpoint_get` | Read metadata for an exact `tinker://` checkpoint path. |
 | `checkpoint_set_ttl` | Change checkpoint retention or remove an existing TTL where supported. |
-| `checkpoint_export` | Get a signed Tinker archive or create a PEFT/merged HF export when supported by the runtime. |
+| `checkpoint_export` | Queue a signed Tinker archive or PEFT/merged HF export; poll the returned ID with `training_get`. |
 | `checkpoint_publish` | Publish an exact checkpoint through Tinker. This changes external visibility. |
 | `checkpoint_unpublish` | Remove publication for an exact checkpoint. |
 | `checkpoint_delete` | Permanently delete an exact checkpoint. This is destructive. |

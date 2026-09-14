@@ -1,6 +1,6 @@
 # Public release test matrix
 
-Last updated: 2026-09-14. Candidate: `0.1.3`.
+Last updated: 2026-09-14. Candidate: `0.1.4`.
 
 This matrix is the release gate for Tuner MCP. A pass means the behavior was exercised
 through the public MCP tool unless the evidence explicitly says `automated` or `Docker`.
@@ -11,7 +11,7 @@ Live canaries use the smallest suitable Tinker chat model and one to three optim
 | Area | Status | Evidence |
 | --- | --- | --- |
 | MCP and infrastructure | Pass | Authenticated HTTP initialize, 48 tools, Redis persistence, Docker doctor |
-| Automated quality | Pass | 101 tests passed, 2 skipped; Ruff and Pyright pass |
+| Automated quality | Pass | 145 tests passed; Ruff and Pyright pass |
 | Model and recipe discovery | Pass | Live models loaded; 34/34 recipe descriptors are import verified |
 | Dataset lifecycle | Pass | Search, probe, pinned fetch, prepare, split, validate, inspect, and render preview exercised |
 | SFT | Pass | Three-step run plus one-step checkpoint resume completed |
@@ -59,9 +59,10 @@ third-party services and would duplicate the same execution engines.
 
 1. Rotate the release credentials. The artifact scan found zero copies of the currently
    configured key and token.
-2. Complete one PEFT conversion and one merged-HF conversion after Tinker archive generation
-   completes reliably. Three sampler-checkpoint attempts remained in archive generation for
-   15–18 minutes and were stopped through MCP; merged-HF depends on the same download step.
+2. Complete one PEFT conversion and one merged-HF conversion. Exports now queue by default,
+   return a pollable ID promptly, persist the Hugging Face model cache, and bound archive URL
+   acquisition at two minutes. A live intermediate-checkpoint retry reached the official
+   Cookbook base-model download; completing both large disk-intensive artifacts remains open.
 3. Ask an external tester to complete the documented SFT workflow without repository help.
 4. Tag a release only after the external-user and export gates pass.
 
@@ -69,6 +70,8 @@ Docker/Redis restart persistence and unauthorized HTTP (`401`) gates passed.
 A clean clone of public commit `c5712f8` built successfully in Docker. An isolated HTTP
 instance initialized from that image with 48 tools, Tuner `0.1.3`, Cookbook available, and
 34 recipe descriptors.
+The `0.1.4` release image also built from the locked dependencies without the former uv
+cross-filesystem hardlink warning, then passed Docker doctor with all 48 tools.
 
 ## Known limits
 
@@ -78,9 +81,10 @@ instance initialized from that image with 48 tools, Tuner `0.1.3`, Cookbook avai
   continue, so tests use strict server-side step limits as the primary bound.
 - Usage data is upstream-account reporting and can arrive after a completed run.
 - Signed checkpoint archive URLs expire and must never be written to public test logs.
-- PEFT conversion exceeded the client's 180-second call deadline. Export records now expose
-  heartbeats and acknowledge `training_stop`; the full conversion remains a release gate.
+- PEFT and merged-HF conversion can take much longer than an MCP client deadline because the
+  official Cookbook downloads the full base model. They now run through Redis/Docket by
+  default, expose heartbeats, support `training_stop`, and reuse a persistent model cache.
 - A clean GitHub clone correctly rejects native Windows installation because upstream
-  `tml-renderers` has no Windows wheel. The documented path is Docker, Linux, or WSL. A clean
-  Docker build reached locked dependency installation but the package mirror stopped making
-  progress; the Dockerfile now retains uv's BuildKit cache and retries slow downloads.
+  `tml-renderers` has no Windows wheel. The documented path is Docker, Linux, or WSL. Cold
+  Docker dependency resolution can be slow; the image retains uv's BuildKit cache, retries
+  slow downloads, and uses copy mode across cache/image filesystems.

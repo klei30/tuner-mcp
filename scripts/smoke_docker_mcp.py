@@ -37,6 +37,8 @@ async def main() -> None:
             "type=volume,source=tuner-state,target=/var/lib/tuner",
             "--mount",
             "type=volume,source=tuner-harbor-cache,target=/home/tuner/.cache/harbor",
+            "--mount",
+            "type=volume,source=tuner-model-cache,target=/home/tuner/.cache/huggingface",
             "tuner-mcp:local",
             "/app/.venv/bin/tuner",
             "--transport",

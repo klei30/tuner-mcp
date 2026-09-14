@@ -3,10 +3,16 @@ from __future__ import annotations
 import asyncio
 import re
 import shutil
+import tempfile
+import urllib.request
+from contextlib import suppress
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Literal
 
+from docket import Docket
 from fastmcp import FastMCP
+from fastmcp_tasks.dependencies import CurrentDocket
 
 from tuner.adapters import TinkerAdapter
 from tuner.artifacts import artifact_root, list_artifacts, read_artifact, rollout_page
@@ -42,6 +48,8 @@ EXPORT_FORMATS = ("tinker_archive", "peft", "hf_merged")
 
 # Heuristic free-disk guards (documented, not a guarantee the merge fits).
 _EXPORT_MIN_FREE_BYTES = {"tinker_archive": 0, "peft": 2_000_000_000, "hf_merged": 10_000_000_000}
+_ARCHIVE_URL_TIMEOUT_SECONDS = 120
+_EXPORT_RUNTIMES: dict[str, tuple[Settings, RunStore, TinkerAdapter]] = {}
 
 
 def validate_checkpoint(path: str) -> None:
@@ -49,22 +57,52 @@ def validate_checkpoint(path: str) -> None:
         raise TunerError("INVALID_CONFIG", "Expected an exact tinker:// run checkpoint path.")
 
 
+def _consume_task(task: asyncio.Task[Any]) -> None:
+    with suppress(BaseException):
+        task.exception()
+
+
+async def _checkpoint_archive_with_deadline(sdk: TinkerAdapter, tinker_path: str) -> dict[str, Any]:
+    task = asyncio.create_task(sdk.checkpoint_archive(tinker_path))
+    done, _ = await asyncio.wait({task}, timeout=_ARCHIVE_URL_TIMEOUT_SECONDS)
+    if not done:
+        task.cancel()
+        task.add_done_callback(_consume_task)
+        raise TunerError(
+            "UPSTREAM_TIMEOUT",
+            "Tinker checkpoint archive generation timed out; retry later.",
+            retryable=True,
+        )
+    return await task
+
+
 def _export_with_cookbook(
-    export_format: str, tinker_path: str, base_model: str, workdir: str
+    export_format: str, archive_url: str, base_model: str, workdir: str
 ) -> dict[str, Any]:
     """Download a checkpoint and build a PEFT adapter or merged HF model.
 
     Blocking Cookbook/torch work; callers must run it in a worker thread.
     Returns local artifact paths. Never returns secrets.
     """
-    from pathlib import Path
-
     from tinker_cookbook import weights
+    from tinker_cookbook.weights._download import _safe_extract_tar
 
     work = Path(workdir)
     adapter_dir = work / "adapter"
     output_dir = work / ("peft_adapter" if export_format == "peft" else "hf_model")
-    downloaded = weights.download(tinker_path=tinker_path, output_dir=str(adapter_dir))
+    adapter_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(suffix=".tar", delete=False) as temp:
+        archive_path = Path(temp.name)
+    try:
+        with (
+            urllib.request.urlopen(archive_url, timeout=120) as response,
+            archive_path.open("wb") as destination,
+        ):
+            shutil.copyfileobj(response, destination)
+        _safe_extract_tar(archive_path, adapter_dir)
+    finally:
+        archive_path.unlink(missing_ok=True)
+    downloaded = str(adapter_dir)
     if export_format == "peft":
         weights.build_lora_adapter(
             base_model=base_model, adapter_path=str(downloaded), output_path=str(output_dir)
@@ -80,7 +118,7 @@ async def _run_local_export(
     store: RunStore,
     export_id: str,
     export_format: str,
-    tinker_path: str,
+    archive_url: str,
     base_model: str,
     workdir: str,
 ) -> dict[str, Any]:
@@ -89,7 +127,7 @@ async def _run_local_export(
         asyncio.to_thread(
             _export_with_cookbook,
             export_format,
-            tinker_path,
+            archive_url,
             base_model,
             workdir,
         )
@@ -121,9 +159,128 @@ async def _run_local_export(
         raise
 
 
+async def _execute_export(
+    settings: Settings, store: RunStore, sdk: TinkerAdapter, export_id: str
+) -> dict[str, Any]:
+    """Execute one admitted export. This function is safe to run in Docket."""
+    record = store.get(export_id)
+    if record["status"] in {"completed", "failed", "stopped", "interrupted"}:
+        return record
+    request = record["request"]
+    tinker_path = request["tinker_path"]
+    export_format = request["format"]
+    base_model = request.get("base_model")
+    export_dir = settings.state_dir / "exports" / export_id
+    export_dir.mkdir(parents=True, exist_ok=True)
+    running = store.update(
+        export_id,
+        status="running",
+        log_path=str(export_dir),
+        heartbeat=utc_now(),
+        execution_phase="requesting_archive",
+    )
+    if running["status"] in {"completed", "failed", "stopped", "interrupted"}:
+        return running
+    try:
+        archive = await _checkpoint_archive_with_deadline(sdk, tinker_path)
+        if store.get(export_id)["status"] == "stop_requested":
+            return store.update(
+                export_id,
+                status="stopped",
+                execution_phase="cancelled_before_conversion",
+                error={"code": "CANCELLED", "message": "Export stop request acknowledged."},
+            )
+        if export_format == "tinker_archive":
+            result = {
+                "export_id": export_id,
+                "tinker_path": tinker_path,
+                "format": export_format,
+                "url": archive.get("url"),
+                "expires": archive.get("expires"),
+            }
+        else:
+            if not cookbook_available():
+                raise TunerError(
+                    "DEPENDENCY_MISSING", "PEFT/HF exports require Cookbook on Linux/WSL."
+                )
+            free = shutil.disk_usage(export_dir).free
+            if free < _EXPORT_MIN_FREE_BYTES[export_format]:
+                raise TunerError(
+                    "QUOTA_EXCEEDED",
+                    "Not enough free disk for this export.",
+                    context={"free_bytes": free},
+                )
+            assert base_model is not None
+            artifacts = await _run_local_export(
+                store,
+                export_id,
+                export_format,
+                archive["url"],
+                base_model,
+                str(export_dir),
+            )
+            result = {
+                "export_id": export_id,
+                "tinker_path": tinker_path,
+                "format": export_format,
+                "base_model": base_model,
+                **artifacts,
+            }
+        return store.update(
+            export_id, status="completed", execution_phase="completed", result=result
+        )
+    except asyncio.CancelledError:
+        return store.update(
+            export_id,
+            status="interrupted",
+            execution_phase="orchestration_cancelled",
+            error={
+                "code": "CANCELLED",
+                "message": "Export orchestration was cancelled; local conversion may still finish.",
+            },
+        )
+    except Exception as exc:
+        if store.get(export_id)["status"] == "stop_requested":
+            return store.update(
+                export_id,
+                status="stopped",
+                execution_phase="cancelled_while_requesting_archive",
+                error={"code": "CANCELLED", "message": "Export stop request acknowledged."},
+            )
+        if isinstance(exc, TunerError):
+            export_error = {
+                "code": exc.code,
+                "message": exc.message,
+                "retryable": exc.retryable,
+                "context": exc.context,
+            }
+        else:
+            export_error = {
+                "code": "EXPORT_FAILED",
+                "message": f"Checkpoint conversion failed ({type(exc).__name__}).",
+                "retryable": False,
+                "context": {},
+            }
+        return store.update(
+            export_id, status="failed", execution_phase="failed", error=export_error
+        )
+
+
+async def execute_export_job(state_dir: str, export_id: str) -> dict[str, Any]:
+    """Docket entry point for durable checkpoint exports."""
+    resolved = str(Path(state_dir).resolve())
+    runtime = _EXPORT_RUNTIMES.get(resolved)
+    if runtime is None:
+        settings = Settings(state_dir=Path(resolved))
+        store = RunStore(settings.state_dir / "runs")
+        runtime = (settings, store, TinkerAdapter())
+    return await _execute_export(*runtime, export_id)
+
+
 def register_operations(
     mcp: FastMCP, settings: Settings, store: RunStore, sdk: TinkerAdapter, error
 ) -> None:
+    _EXPORT_RUNTIMES[str(settings.state_dir.resolve())] = (settings, store, sdk)
     @mcp.tool(annotations={"readOnlyHint": True})
     def objects_list(
         kind: Literal["dataset", "plan", "recipe_plan", "experiment_plan"],
@@ -345,8 +502,10 @@ def register_operations(
         format: Literal["tinker_archive", "peft", "hf_merged"],
         base_model: str | None = None,
         idempotency_key: str | None = None,
+        background: bool = True,
+        docket: Docket = CurrentDocket(),
     ) -> dict[str, Any]:
-        """Export a checkpoint as a signed archive URL, PEFT adapter, or merged HF model."""
+        """Queue a checkpoint export, or wait when background=false."""
         try:
             validate_checkpoint(tinker_path)
             if format not in EXPORT_FORMATS:
@@ -370,70 +529,26 @@ def register_operations(
                 return {**record, "export_id": export_id, "idempotent_replay": True}
             export_dir = settings.state_dir / "exports" / export_id
             export_dir.mkdir(parents=True, exist_ok=True)
-            store.update(export_id, status="running", log_path=str(export_dir))
-            try:
-                if format == "tinker_archive":
-                    archive = await sdk.checkpoint_archive(tinker_path)
-                    result = {
-                        "export_id": export_id,
-                        "tinker_path": tinker_path,
-                        "format": format,
-                        "url": archive.get("url"),
-                        "expires": archive.get("expires"),
-                    }
-                else:
-                    if not cookbook_available():
-                        raise TunerError(
-                            "DEPENDENCY_MISSING",
-                            "PEFT/HF exports require Cookbook on Linux/WSL.",
-                        )
-                    free = shutil.disk_usage(export_dir).free
-                    if free < _EXPORT_MIN_FREE_BYTES[format]:
-                        raise TunerError(
-                            "QUOTA_EXCEEDED",
-                            "Not enough free disk for this export.",
-                            context={"free_bytes": free},
-                        )
-                    assert base_model is not None
-                    artifacts = await _run_local_export(
-                        store,
-                        export_id,
-                        format,
-                        tinker_path,
-                        base_model,
-                        str(export_dir),
-                    )
-                    result = {
-                        "export_id": export_id,
-                        "tinker_path": tinker_path,
-                        "format": format,
-                        "base_model": base_model,
-                        **artifacts,
-                    }
-            except asyncio.CancelledError:
-                store.update(
-                    export_id,
-                    status="interrupted",
-                    error={
-                        "code": "CANCELLED",
-                        "message": (
-                            "Export orchestration was cancelled; local conversion may still finish."
-                        ),
-                    },
+            record = store.update(export_id, log_path=str(export_dir))
+            if background:
+                await docket.add(execute_export_job, key=export_id)(
+                    str(settings.state_dir), export_id
                 )
-                raise
-            except Exception as exc:
-                store.update(
-                    export_id,
-                    status="failed",
-                    execution_phase="failed",
-                    error={
-                        "code": "EXPORT_FAILED",
-                        "message": f"Checkpoint conversion failed ({type(exc).__name__}).",
-                    },
+                return {
+                    **record,
+                    "export_id": export_id,
+                    "inspection_uri": f"tuner://runs/{export_id}",
+                }
+            result = await _execute_export(settings, store, sdk, export_id)
+            if result["status"] == "failed":
+                failure = result["error"]
+                raise TunerError(
+                    failure["code"],
+                    failure["message"],
+                    retryable=failure.get("retryable", False),
+                    context=failure.get("context", {}),
                 )
-                raise
-            return {**store.update(export_id, status="completed", result=result), **result}
+            return {**result, **result.get("result", {})}
         except Exception as exc:
             raise error(exc) from None
 

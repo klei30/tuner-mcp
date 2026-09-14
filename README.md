@@ -141,8 +141,8 @@ docker network connect tuner-mcp-network tuner-test-redis
 ```
 
 The workspace-specific service connects to Redis as
-`redis://tuner-test-redis:6379/0` and uses the external `tuner-harbor-cache`
-volume. For an update
+`redis://tuner-test-redis:6379/0`, uses the external `tuner-harbor-cache`
+volume, and keeps Hugging Face model downloads in `tuner-model-cache`. For an update
 to the existing installation, build `docker build -t tuner-mcp:candidate .`, run
 `./scripts/deploy.ps1`, then `./scripts/doctor.ps1`. Deployment checks for active
 runs and retains the old image under a timestamped rollback tag. It reads the existing Windows
@@ -281,10 +281,12 @@ Capabilities distinguish credential presence from verified connectivity.
 Evaluation is marked as mutating because it creates run records and artifacts.
 `train_sft/dpo/rl/distill` and `evaluate` accept `background=true` to submit
 through Docket and return a `run_id` promptly; native task clients get progress
-the same way. `checkpoint_export` returns a signed archive URL (`tinker_archive`)
-or builds a PEFT adapter / merged HF model (`peft`/`hf_merged`, Linux/WSL only,
-needs free disk). Signed Tinker archive export is live verified; PEFT and merged-HF
-exports still require their dedicated disk-intensive release checks.
+the same way. `checkpoint_export` queues work by default and promptly returns an
+`export_id`; poll it with `training_get` and stop it with `training_stop`. Pass
+`background=false` only when the archive or conversion is known to fit the client
+deadline. It returns a signed archive URL (`tinker_archive`) or builds a PEFT adapter /
+merged HF model (`peft`/`hf_merged`, Linux/WSL only, needs free disk). The persistent
+model cache avoids downloading the same Hugging Face base model for every retry.
 
 ## MCP client configuration
 

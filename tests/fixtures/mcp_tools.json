@@ -94,6 +94,10 @@
             }
           ],
           "default": null
+        },
+        "background": {
+          "default": true,
+          "type": "boolean"
         }
       },
       "required": [

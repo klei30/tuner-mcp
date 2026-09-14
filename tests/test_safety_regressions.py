@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 from fastmcp import Client
-from mcp.shared.exceptions import MCPError
 
 from tuner.adapters import TinkerAdapter
 from tuner.auth import TunerTokenVerifier
@@ -56,14 +55,15 @@ async def test_cancelled_export_is_persisted(tmp_path: Path, monkeypatch) -> Non
     settings = Settings(state_dir=tmp_path / "state", allowed_roots=(tmp_path,))
     server = create_server(settings, sdk_adapter=CancelledExportSDK())
     async with Client(server) as client:
-        with pytest.raises((asyncio.CancelledError, MCPError)):
-            await client.call_tool(
-                "checkpoint_export",
-                {
-                    "tinker_path": "tinker://run-1/sampler_weights/final",
-                    "format": "tinker_archive",
-                },
-            )
+        result = await client.call_tool(
+            "checkpoint_export",
+            {
+                "tinker_path": "tinker://run-1/sampler_weights/final",
+                "format": "tinker_archive",
+                "background": False,
+            },
+        )
+        assert result.data["status"] == "interrupted"
     records = RunStore(settings.state_dir / "runs").list()
     assert records[0]["status"] == "interrupted"
     assert records[0]["error"]["code"] == "CANCELLED"
