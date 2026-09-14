@@ -1,0 +1,15 @@
+interface:
+  display_name: "Tuner MCP"
+  short_description: "Run complete Tinker post-training workflows"
+  default_prompt: "Use $tuner-mcp to plan and run this bounded model-training workflow through native Tuner MCP tools."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "tuner"
+      description: "Tuner MCP server for Tinker and Cookbook workflows"
+      transport: "streamable_http"
+      url: "http://127.0.0.1:8765/mcp"
+
+policy:
+  allow_implicit_invocation: true

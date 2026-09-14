@@ -17,6 +17,26 @@ checkpoints, and experiment comparison.
 Prefer a visual workflow? [Tuner UI](https://github.com/klei30/tuner-ui) is the
 first-party browser interface and delegates live training to this control plane.
 
+## Agent skill
+
+[`SKILL.md`](SKILL.md) gives Codex and other skill-aware agents the complete
+operating guide for Tuner. It routes agents across all 48 MCP tools and 34
+reviewed Cookbook recipes, including dataset preparation, bounded training,
+monitoring, evaluation, checkpoint management, usage reporting, recovery, and
+the rule that live Tuner work must use native MCP tools rather than shell or
+direct API substitutes. Detailed tool, recipe, contract, workflow, and runtime
+references live under [`references/`](references/).
+
+To make the repository-owned skill available to a local Codex installation on
+Windows without creating a second copy, link this repository as the skill
+directory and restart Codex:
+
+```powershell
+New-Item -ItemType Junction `
+  -Path "$env:USERPROFILE\.codex\skills\tuner-mcp" `
+  -Target (Resolve-Path .)
+```
+
 ## Use cases
 
 These workflows progress from basic model and data operations to advanced,
