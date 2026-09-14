@@ -286,8 +286,10 @@ the same way. `checkpoint_export` queues work by default and promptly returns an
 `export_id`; poll it with `training_get` and stop it with `training_stop`. Pass
 `background=false` only when the archive or conversion is known to fit the client
 deadline. It returns a signed archive URL (`tinker_archive`) or builds a PEFT adapter /
-merged HF model (`peft`/`hf_merged`, Linux/WSL only, needs free disk). The persistent
-model cache avoids downloading the same Hugging Face base model for every retry.
+merged HF model (`peft`/`hf_merged`). PEFT preserves the adapter produced by Tinker's
+remote checkpoint exporter and does not download the base model. Merged-HF runs through
+Cookbook on Linux/WSL and needs the full base model; the persistent model cache avoids
+downloading that model again on later merges.
 
 ## MCP client configuration
 

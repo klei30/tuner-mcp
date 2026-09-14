@@ -82,7 +82,7 @@ Inspect an evaluation with `evaluation_get` and `evaluation_failures`. Call `com
 
 Use `checkpoint_list` with the remote Tinker training run ID, then `checkpoint_get` with an exact `tinker://` path. Sampling requires a sampler-compatible checkpoint.
 
-Use `checkpoint_set_ttl` to change retention. `checkpoint_export` queues a Tinker archive or local PEFT/merged Hugging Face output by default. Poll its `export_id` with `training_get`; use `training_stop` when the user asks to cancel it. Use `background=false` only when the work is known to fit the client deadline. Publishing changes external visibility; deletion is destructive. Call `checkpoint_publish`, `checkpoint_unpublish`, or `checkpoint_delete` only when the user explicitly asked for that action and the exact checkpoint is known.
+Use `checkpoint_set_ttl` to change retention. `checkpoint_export` queues a Tinker archive or PEFT/merged Hugging Face output by default. PEFT extracts the native adapter produced by Tinker and needs neither `base_model` nor a full base-model download. Merged-HF requires `base_model` and performs the Cookbook merge on the MCP worker. Poll the returned `export_id` with `training_get`; use `training_stop` when the user asks to cancel it. Use `background=false` only when the work is known to fit the client deadline. Publishing changes external visibility; deletion is destructive. Call `checkpoint_publish`, `checkpoint_unpublish`, or `checkpoint_delete` only when the user explicitly asked for that action and the exact checkpoint is known.
 
 ## Reporting
 

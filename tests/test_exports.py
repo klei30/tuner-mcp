@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import tarfile
 import time
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastmcp import Client
 
 from tuner.adapters import TinkerAdapter
+from tuner.errors import TunerError
 from tuner.mcp_server import create_server
 from tuner.settings import Settings
 
@@ -32,6 +35,41 @@ def _server(tmp_path: Path, monkeypatch) -> Any:
     monkeypatch.setenv("TINKER_API_KEY", "test-placeholder-not-a-live-key")
     settings = Settings(state_dir=tmp_path / "state", allowed_roots=(tmp_path,))
     return create_server(settings, sdk_adapter=FakeSDK())
+
+
+def test_native_peft_export_preserves_tinker_adapter(tmp_path: Path) -> None:
+    from tuner.operations import _export_native_peft
+
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "adapter_config.json").write_text('{"peft_type":"LORA"}', encoding="utf-8")
+    (source / "adapter_model.safetensors").write_bytes(b"adapter")
+    (source / "checkpoint_complete").write_text("", encoding="utf-8")
+    archive = tmp_path / "checkpoint.tar"
+    with tarfile.open(archive, "w") as bundle:
+        for path in source.iterdir():
+            bundle.add(path, arcname=path.name)
+
+    result = _export_native_peft(archive.as_uri(), str(tmp_path / "export"))
+
+    output = Path(result["output_path"])
+    assert output == Path(result["adapter_path"])
+    assert (output / "adapter_config.json").is_file()
+    assert (output / "adapter_model.safetensors").read_bytes() == b"adapter"
+
+
+def test_native_peft_export_rejects_archive_links(tmp_path: Path) -> None:
+    from tuner.operations import _export_native_peft
+
+    archive = tmp_path / "checkpoint.tar"
+    with tarfile.open(archive, "w") as bundle:
+        link = tarfile.TarInfo("adapter_model.safetensors")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "/etc/passwd"
+        bundle.addfile(link)
+
+    with pytest.raises(TunerError, match="unsafe link"):
+        _export_native_peft(archive.as_uri(), str(tmp_path / "export"))
 
 
 async def test_export_archive_success_and_replay(tmp_path: Path, monkeypatch) -> None:
@@ -122,16 +160,33 @@ async def test_export_archive_timeout_is_retryable(tmp_path: Path, monkeypatch) 
         assert '"retryable": true' in str(result.content)
 
 
-async def test_export_peft_requires_base_model(tmp_path: Path, monkeypatch) -> None:
+async def test_export_peft_uses_native_archive_without_base_model_or_cookbook(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import tuner.operations as ops
+
+    monkeypatch.setattr(ops, "cookbook_available", lambda: False)
+    monkeypatch.setattr(
+        ops,
+        "_export_native_peft",
+        lambda path, workdir: {
+            "adapter_path": str(Path(workdir) / "peft_adapter"),
+            "output_path": str(Path(workdir) / "peft_adapter"),
+        },
+    )
     server = _server(tmp_path, monkeypatch)
     async with Client(server) as client:
         result = await client.call_tool(
             "checkpoint_export",
-            {"tinker_path": "tinker://run-1/sampler_weights/0001", "format": "peft"},
-            raise_on_error=False,
+            {
+                "tinker_path": "tinker://run-1/sampler_weights/0001",
+                "format": "peft",
+                "background": False,
+            },
         )
-        assert result.is_error
-        assert "INVALID_CONFIG" in str(result.content)
+        assert result.data["format"] == "peft"
+        assert "base_model" not in result.data
+        assert result.data["output_path"].endswith("peft_adapter")
 
 
 async def test_export_peft_requires_sampler_checkpoint(tmp_path: Path, monkeypatch) -> None:
@@ -151,7 +206,7 @@ async def test_export_peft_requires_sampler_checkpoint(tmp_path: Path, monkeypat
         assert "sampler_weights" in str(result.content)
 
 
-async def test_export_peft_blocked_without_cookbook(tmp_path: Path, monkeypatch) -> None:
+async def test_export_merged_hf_blocked_without_cookbook(tmp_path: Path, monkeypatch) -> None:
     import tuner.operations as ops
 
     monkeypatch.setattr(ops, "cookbook_available", lambda: False)
@@ -161,7 +216,7 @@ async def test_export_peft_blocked_without_cookbook(tmp_path: Path, monkeypatch)
             "checkpoint_export",
             {
                 "tinker_path": "tinker://run-1/sampler_weights/0001",
-                "format": "peft",
+                "format": "hf_merged",
                 "base_model": "Qwen/Qwen3-8B",
                 "background": False,
             },
@@ -174,12 +229,11 @@ async def test_export_peft_blocked_without_cookbook(tmp_path: Path, monkeypatch)
 async def test_export_peft_success_with_fake_builder(tmp_path: Path, monkeypatch) -> None:
     import tuner.operations as ops
 
-    monkeypatch.setattr(ops, "cookbook_available", lambda: True)
     monkeypatch.setattr(
         ops,
-        "_export_with_cookbook",
-        lambda fmt, path, model, workdir: {
-            "adapter_path": str(Path(workdir) / "adapter"),
+        "_export_native_peft",
+        lambda path, workdir: {
+            "adapter_path": str(Path(workdir) / "peft_adapter"),
             "output_path": str(Path(workdir) / "peft_adapter"),
         },
     )
@@ -190,7 +244,6 @@ async def test_export_peft_success_with_fake_builder(tmp_path: Path, monkeypatch
             {
                 "tinker_path": "tinker://run-1/sampler_weights/0001",
                 "format": "peft",
-                "base_model": "Qwen/Qwen3-8B",
                 "background": False,
             },
         )
@@ -203,13 +256,11 @@ async def test_export_peft_stop_is_acknowledged(tmp_path: Path, monkeypatch) -> 
 
     import tuner.operations as ops
 
-    monkeypatch.setattr(ops, "cookbook_available", lambda: True)
-
-    def slow_builder(fmt, path, model, workdir):
+    def slow_builder(path, workdir):
         time.sleep(5)
         return {"adapter_path": workdir, "output_path": workdir}
 
-    monkeypatch.setattr(ops, "_export_with_cookbook", slow_builder)
+    monkeypatch.setattr(ops, "_export_native_peft", slow_builder)
     server = _server(tmp_path, monkeypatch)
     async with Client(server) as client:
         export = asyncio.create_task(
@@ -218,7 +269,6 @@ async def test_export_peft_stop_is_acknowledged(tmp_path: Path, monkeypatch) -> 
                 {
                     "tinker_path": "tinker://run-1/sampler_weights/0001",
                     "format": "peft",
-                    "base_model": "Qwen/Qwen3-8B",
                     "idempotency_key": "slow-export",
                     "background": False,
                 },

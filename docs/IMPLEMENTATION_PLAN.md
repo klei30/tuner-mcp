@@ -120,7 +120,7 @@ Preserve the existing 15 names. Add tools only where they create a distinct oper
 
 Extend `evaluate` to accept a benchmark suite while preserving the current single-benchmark request. This removes the need for a separate `evaluate_many`. Extend `compare_runs` with explicit metric direction and evaluation fingerprints instead of introducing overlapping checkpoint comparison tools. Keep evaluation IDs distinguishable from training IDs even if both share internal job storage.
 
-Use `checkpoint_export(format="tinker_archive" | "peft" | "hf_merged")` to orchestrate Cookbook download/build operations. `checkpoint_publish` controls visibility on Tinker; an eventual `weights_publish` uploads a prepared artifact to Hugging Face. These are different destinations and must remain explicit.
+Use `checkpoint_export(format="tinker_archive" | "peft" | "hf_merged")` for checkpoint artifacts. Tinker's remote checkpoint archive is already PEFT-compatible, so the PEFT path validates and preserves that adapter without downloading the base model. Only merged-HF uses Cookbook to download the base model and merge locally. `checkpoint_publish` controls visibility on Tinker; an eventual `weights_publish` uploads a prepared artifact to Hugging Face. These are different destinations and must remain explicit.
 
 Expose recipe/config details and larger artifacts through MCP resources as well as bounded tools. Optional MCP prompts can guide dataset-to-training conversations. Clients that do not support resources/prompts still need useful tool responses.
 
@@ -192,7 +192,7 @@ Normalize step metrics, rewards/KL, rollout summaries, checkpoint records, evalu
 
 The SDK already has `RestClient.get_billing_usage_async`, session inspection and trace export. Add `usage_get` from these public methods. Usage events are not automatically an exact dollar total: preserve units and time windows, correlate sessions to runs, and label any pricing-based estimate. Admission should constrain training steps, rollout/sample volume and concurrent runs independently of an estimated dollar cap.
 
-Checkpoint operations should use SDK management APIs and Cookbook `weights.download`, `build_lora_adapter`, `build_hf_model`, and `publish_to_hf_hub`. HF merged export needs CPU memory/disk capacity checks; successful training does not guarantee an arbitrary worker can merge that model.
+Checkpoint operations should use SDK management APIs. Preserve Tinker's native PEFT archive directly; use Cookbook `build_hf_model` and `publish_to_hf_hub` only when a merged model or Hub publication is requested. HF merged export needs CPU memory/disk capacity checks; successful training does not guarantee an arbitrary worker can merge that model.
 
 ## Code2MCP and MCPify: concrete discovery work
 

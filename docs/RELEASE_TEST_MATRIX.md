@@ -1,6 +1,6 @@
 # Public release test matrix
 
-Last updated: 2026-09-14. Candidate: `0.1.4`.
+Last updated: 2026-09-15. Candidate: `0.1.4`.
 
 This matrix is the release gate for Tuner MCP. A pass means the behavior was exercised
 through the public MCP tool unless the evidence explicitly says `automated` or `Docker`.
@@ -11,7 +11,7 @@ Live canaries use the smallest suitable Tinker chat model and one to three optim
 | Area | Status | Evidence |
 | --- | --- | --- |
 | MCP and infrastructure | Pass | Authenticated HTTP initialize, 48 tools, Redis persistence, Docker doctor |
-| Automated quality | Pass | 145 tests passed; Ruff and Pyright pass |
+| Automated quality | Pass | 147 tests passed; Ruff and Pyright pass |
 | Model and recipe discovery | Pass | Live models loaded; 34/34 recipe descriptors are import verified |
 | Dataset lifecycle | Pass | Search, probe, pinned fetch, prepare, split, validate, inspect, and render preview exercised |
 | SFT | Pass | Three-step run plus one-step checkpoint resume completed |
@@ -20,7 +20,7 @@ Live canaries use the smallest suitable Tinker chat model and one to three optim
 | Distillation | Pass | One-step on-policy 9B teacher to 4B student run completed |
 | Native Cookbook recipe | Pass | `math_rl` planned and completed through `recipe_start` |
 | Sampling and evaluation | Pass | Sampling and logprobs work; base and RL checkpoint scored 3/3 GSM8K with no truncation |
-| Checkpoint lifecycle | Partial | List, inspect, archive export, TTL, publish, unpublish, and delete passed; full PEFT/HF conversion remains |
+| Checkpoint lifecycle | Partial | List, inspect, native PEFT export, archive export, TTL, publish, unpublish, and delete passed; merged-HF remains |
 | Operational lifecycle | Pass | Metrics, bounded logs, artifacts, rollouts, stop idempotency, sessions, trace export, and usage exercised |
 | Clean-machine usability | Partial | Clean public clone, Docker build, and isolated second-client smoke test pass; human sign-off remains |
 
@@ -59,10 +59,11 @@ third-party services and would duplicate the same execution engines.
 
 1. Rotate the release credentials. The artifact scan found zero copies of the currently
    configured key and token.
-2. Complete one PEFT conversion and one merged-HF conversion. Exports now queue by default,
-   return a pollable ID promptly, persist the Hugging Face model cache, and bound archive URL
-   acquisition at two minutes. A live intermediate-checkpoint retry reached the official
-   Cookbook base-model download; completing both large disk-intensive artifacts remains open.
+2. Complete one merged-HF conversion. Exports queue by default, return a pollable ID
+   promptly, persist the Hugging Face model cache, and bound archive URL acquisition at two
+   minutes. Native PEFT passed through MCP as `run_86fe045c61094f33a5d5e2adf90c4956`:
+   Tinker's 72,975,632-byte adapter was extracted and validated without a base-model download.
+   Merged-HF still requires the full base model and substantial disk.
 3. Ask an external tester to complete the documented SFT workflow without repository help.
 4. Tag a release only after the external-user and export gates pass.
 
@@ -81,9 +82,9 @@ cross-filesystem hardlink warning, then passed Docker doctor with all 48 tools.
   continue, so tests use strict server-side step limits as the primary bound.
 - Usage data is upstream-account reporting and can arrive after a completed run.
 - Signed checkpoint archive URLs expire and must never be written to public test logs.
-- PEFT and merged-HF conversion can take much longer than an MCP client deadline because the
-  official Cookbook downloads the full base model. They now run through Redis/Docket by
-  default, expose heartbeats, support `training_stop`, and reuse a persistent model cache.
+- Archive generation and merged-HF conversion can exceed an MCP client deadline. Exports run
+  through Redis/Docket by default, expose heartbeats, and support `training_stop`. Native PEFT
+  extracts Tinker's adapter without the base model; merged-HF reuses a persistent model cache.
 - A clean GitHub clone correctly rejects native Windows installation because upstream
   `tml-renderers` has no Windows wheel. The documented path is Docker, Linux, or WSL. Cold
   Docker dependency resolution can be slow; the image retains uv's BuildKit cache, retries

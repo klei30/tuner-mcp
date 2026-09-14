@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import re
 import shutil
+import tarfile
 import tempfile
 import urllib.request
 from contextlib import suppress
@@ -47,7 +48,7 @@ OPERATION_TOOLS = [
 EXPORT_FORMATS = ("tinker_archive", "peft", "hf_merged")
 
 # Heuristic free-disk guards (documented, not a guarantee the merge fits).
-_EXPORT_MIN_FREE_BYTES = {"tinker_archive": 0, "peft": 2_000_000_000, "hf_merged": 10_000_000_000}
+_EXPORT_MIN_FREE_BYTES = {"tinker_archive": 0, "peft": 500_000_000, "hf_merged": 10_000_000_000}
 _ARCHIVE_URL_TIMEOUT_SECONDS = 120
 _EXPORT_RUNTIMES: dict[str, tuple[Settings, RunStore, TinkerAdapter]] = {}
 
@@ -76,10 +77,67 @@ async def _checkpoint_archive_with_deadline(sdk: TinkerAdapter, tinker_path: str
     return await task
 
 
-def _export_with_cookbook(
-    export_format: str, archive_url: str, base_model: str, workdir: str
+def _download_and_extract_archive(archive_url: str, output_dir: Path) -> None:
+    """Download and safely extract a Tinker checkpoint archive."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(suffix=".tar", delete=False) as temp:
+        archive_path = Path(temp.name)
+    try:
+        with (
+            urllib.request.urlopen(archive_url, timeout=120) as response,
+            archive_path.open("wb") as destination,
+        ):
+            shutil.copyfileobj(response, destination)
+        base = output_dir.resolve()
+        with tarfile.open(archive_path, "r:*") as archive:
+            for member in archive.getmembers():
+                if member.issym() or member.islnk():
+                    raise TunerError(
+                        "INVALID_CHECKPOINT_ARCHIVE",
+                        "Tinker checkpoint archive contains an unsafe link.",
+                    )
+                if not (member.isdir() or member.isfile()):
+                    raise TunerError(
+                        "INVALID_CHECKPOINT_ARCHIVE",
+                        "Tinker checkpoint archive contains an unsupported file type.",
+                    )
+                target = (output_dir / member.name).resolve()
+                try:
+                    target.relative_to(base)
+                except ValueError as exc:
+                    raise TunerError(
+                        "INVALID_CHECKPOINT_ARCHIVE",
+                        "Tinker checkpoint archive contains an unsafe path.",
+                    ) from exc
+            archive.extractall(output_dir)
+    finally:
+        archive_path.unlink(missing_ok=True)
+
+
+def _export_native_peft(archive_url: str, workdir: str) -> dict[str, Any]:
+    """Preserve the PEFT adapter produced by Tinker's remote checkpoint exporter."""
+    output_dir = Path(workdir) / "peft_adapter"
+    _download_and_extract_archive(archive_url, output_dir)
+    config = output_dir / "adapter_config.json"
+    weights = [output_dir / "adapter_model.safetensors", output_dir / "adapter_model.bin"]
+    complete = output_dir / "checkpoint_complete"
+    if not config.is_file() or not any(path.is_file() for path in weights):
+        raise TunerError(
+            "INVALID_CHECKPOINT_ARCHIVE",
+            "Tinker checkpoint archive does not contain a PEFT adapter.",
+        )
+    if not complete.is_file():
+        raise TunerError(
+            "INVALID_CHECKPOINT_ARCHIVE",
+            "Tinker checkpoint archive is incomplete.",
+        )
+    return {"adapter_path": str(output_dir), "output_path": str(output_dir)}
+
+
+def _export_merged_with_cookbook(
+    archive_url: str, base_model: str, workdir: str
 ) -> dict[str, Any]:
-    """Download a checkpoint and build a PEFT adapter or merged HF model.
+    """Download a checkpoint and build a merged Hugging Face model.
 
     Blocking Cookbook/torch work; callers must run it in a worker thread.
     Returns local artifact paths. Never returns secrets.
@@ -89,7 +147,7 @@ def _export_with_cookbook(
 
     work = Path(workdir)
     adapter_dir = work / "adapter"
-    output_dir = work / ("peft_adapter" if export_format == "peft" else "hf_model")
+    output_dir = work / "hf_model"
     adapter_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(suffix=".tar", delete=False) as temp:
         archive_path = Path(temp.name)
@@ -103,14 +161,9 @@ def _export_with_cookbook(
     finally:
         archive_path.unlink(missing_ok=True)
     downloaded = str(adapter_dir)
-    if export_format == "peft":
-        weights.build_lora_adapter(
-            base_model=base_model, adapter_path=str(downloaded), output_path=str(output_dir)
-        )
-    else:
-        weights.build_hf_model(
-            base_model=base_model, adapter_path=str(downloaded), output_path=str(output_dir)
-        )
+    weights.build_hf_model(
+        base_model=base_model, adapter_path=str(downloaded), output_path=str(output_dir)
+    )
     return {"adapter_path": str(downloaded), "output_path": str(output_dir)}
 
 
@@ -119,19 +172,18 @@ async def _run_local_export(
     export_id: str,
     export_format: str,
     archive_url: str,
-    base_model: str,
+    base_model: str | None,
     workdir: str,
 ) -> dict[str, Any]:
     """Run blocking conversion while exposing heartbeat and stop acknowledgement."""
-    task = asyncio.create_task(
-        asyncio.to_thread(
-            _export_with_cookbook,
-            export_format,
-            archive_url,
-            base_model,
-            workdir,
+    if export_format == "peft":
+        pending = asyncio.to_thread(_export_native_peft, archive_url, workdir)
+    else:
+        assert base_model is not None
+        pending = asyncio.to_thread(
+            _export_merged_with_cookbook, archive_url, base_model, workdir
         )
-    )
+    task = asyncio.create_task(pending)
     try:
         while not task.done():
             done, _ = await asyncio.wait({task}, timeout=1)
@@ -199,9 +251,9 @@ async def _execute_export(
                 "expires": archive.get("expires"),
             }
         else:
-            if not cookbook_available():
+            if export_format == "hf_merged" and not cookbook_available():
                 raise TunerError(
-                    "DEPENDENCY_MISSING", "PEFT/HF exports require Cookbook on Linux/WSL."
+                    "DEPENDENCY_MISSING", "Merged-HF exports require Cookbook on Linux/WSL."
                 )
             free = shutil.disk_usage(export_dir).free
             if free < _EXPORT_MIN_FREE_BYTES[export_format]:
@@ -210,7 +262,8 @@ async def _execute_export(
                     "Not enough free disk for this export.",
                     context={"free_bytes": free},
                 )
-            assert base_model is not None
+            if export_format == "hf_merged":
+                assert base_model is not None
             artifacts = await _run_local_export(
                 store,
                 export_id,
@@ -223,9 +276,10 @@ async def _execute_export(
                 "export_id": export_id,
                 "tinker_path": tinker_path,
                 "format": export_format,
-                "base_model": base_model,
                 **artifacts,
             }
+            if base_model is not None:
+                result["base_model"] = base_model
         return store.update(
             export_id, status="completed", execution_phase="completed", result=result
         )
@@ -512,12 +566,12 @@ def register_operations(
                 raise TunerError(
                     "INVALID_CONFIG", "format must be tinker_archive, peft, or hf_merged."
                 )
-            if format != "tinker_archive" and not base_model:
-                raise TunerError("INVALID_CONFIG", "peft and hf_merged exports require base_model.")
+            if format == "hf_merged" and not base_model:
+                raise TunerError("INVALID_CONFIG", "hf_merged exports require base_model.")
             if format != "tinker_archive" and "/sampler_weights/" not in tinker_path:
                 raise TunerError(
                     "INVALID_CONFIG",
-                    "PEFT and merged-HF conversion require a sampler_weights checkpoint.",
+                    "PEFT and merged-HF exports require a sampler_weights checkpoint.",
                 )
             if idempotency_key is not None and not 1 <= len(idempotency_key) <= 200:
                 raise TunerError("INVALID_CONFIG", "idempotency_key must contain 1..200 characters")
