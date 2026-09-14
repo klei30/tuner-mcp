@@ -68,11 +68,27 @@ async def test_export_peft_requires_base_model(tmp_path: Path, monkeypatch) -> N
     async with Client(server) as client:
         result = await client.call_tool(
             "checkpoint_export",
-            {"tinker_path": "tinker://run-1/weights/0001", "format": "peft"},
+            {"tinker_path": "tinker://run-1/sampler_weights/0001", "format": "peft"},
             raise_on_error=False,
         )
         assert result.is_error
         assert "INVALID_CONFIG" in str(result.content)
+
+
+async def test_export_peft_requires_sampler_checkpoint(tmp_path: Path, monkeypatch) -> None:
+    server = _server(tmp_path, monkeypatch)
+    async with Client(server) as client:
+        result = await client.call_tool(
+            "checkpoint_export",
+            {
+                "tinker_path": "tinker://run-1/weights/final",
+                "format": "peft",
+                "base_model": "Qwen/Qwen3-8B",
+            },
+            raise_on_error=False,
+        )
+        assert result.is_error
+        assert "sampler_weights" in str(result.content)
 
 
 async def test_export_peft_blocked_without_cookbook(tmp_path: Path, monkeypatch) -> None:
@@ -84,7 +100,7 @@ async def test_export_peft_blocked_without_cookbook(tmp_path: Path, monkeypatch)
         result = await client.call_tool(
             "checkpoint_export",
             {
-                "tinker_path": "tinker://run-1/weights/0001",
+                "tinker_path": "tinker://run-1/sampler_weights/0001",
                 "format": "peft",
                 "base_model": "Qwen/Qwen3-8B",
             },
@@ -111,7 +127,7 @@ async def test_export_peft_success_with_fake_builder(tmp_path: Path, monkeypatch
         result = await client.call_tool(
             "checkpoint_export",
             {
-                "tinker_path": "tinker://run-1/weights/0001",
+                "tinker_path": "tinker://run-1/sampler_weights/0001",
                 "format": "peft",
                 "base_model": "Qwen/Qwen3-8B",
             },
@@ -138,7 +154,7 @@ async def test_export_peft_stop_is_acknowledged(tmp_path: Path, monkeypatch) -> 
             client.call_tool(
                 "checkpoint_export",
                 {
-                    "tinker_path": "tinker://run-1/weights/0001",
+                    "tinker_path": "tinker://run-1/sampler_weights/0001",
                     "format": "peft",
                     "base_model": "Qwen/Qwen3-8B",
                     "idempotency_key": "slow-export",
@@ -163,7 +179,7 @@ async def test_export_requires_api_key(tmp_path: Path, monkeypatch) -> None:
     async with Client(server) as client:
         result = await client.call_tool(
             "checkpoint_export",
-            {"tinker_path": "tinker://run-1/weights/0001", "format": "tinker_archive"},
+            {"tinker_path": "tinker://run-1/sampler_weights/0001", "format": "tinker_archive"},
             raise_on_error=False,
         )
         assert result.is_error

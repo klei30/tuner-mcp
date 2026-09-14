@@ -355,6 +355,11 @@ def register_operations(
                 )
             if format != "tinker_archive" and not base_model:
                 raise TunerError("INVALID_CONFIG", "peft and hf_merged exports require base_model.")
+            if format != "tinker_archive" and "/sampler_weights/" not in tinker_path:
+                raise TunerError(
+                    "INVALID_CONFIG",
+                    "PEFT and merged-HF conversion require a sampler_weights checkpoint.",
+                )
             if idempotency_key is not None and not 1 <= len(idempotency_key) <= 200:
                 raise TunerError("INVALID_CONFIG", "idempotency_key must contain 1..200 characters")
             require_api_key(settings.has_api_key)
@@ -417,8 +422,16 @@ def register_operations(
                     },
                 )
                 raise
-            except Exception:
-                store.update(export_id, status="failed")
+            except Exception as exc:
+                store.update(
+                    export_id,
+                    status="failed",
+                    execution_phase="failed",
+                    error={
+                        "code": "EXPORT_FAILED",
+                        "message": f"Checkpoint conversion failed ({type(exc).__name__}).",
+                    },
+                )
                 raise
             return {**store.update(export_id, status="completed", result=result), **result}
         except Exception as exc:

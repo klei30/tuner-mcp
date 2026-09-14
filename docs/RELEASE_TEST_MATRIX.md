@@ -59,7 +59,9 @@ third-party services and would duplicate the same execution engines.
 
 1. Rotate the release credentials. The artifact scan found zero copies of the currently
    configured key and token.
-2. Complete one PEFT conversion and one merged-HF conversion on a host with enough disk.
+2. Complete one PEFT conversion and one merged-HF conversion after Tinker archive generation
+   completes reliably. Two sampler-checkpoint attempts remained in archive generation for more
+   than 15 minutes and were stopped through MCP; merged-HF depends on the same download step.
 3. Install from the README on a clean VM with Codex and one other MCP client.
 4. Ask an external tester to complete the documented SFT workflow without repository help.
 5. Tag a release only after the clean-machine gate passes.
@@ -76,3 +78,7 @@ Docker/Redis restart persistence and unauthorized HTTP (`401`) gates passed.
 - Signed checkpoint archive URLs expire and must never be written to public test logs.
 - PEFT conversion exceeded the client's 180-second call deadline. Export records now expose
   heartbeats and acknowledge `training_stop`; the full conversion remains a release gate.
+- A clean GitHub clone correctly rejects native Windows installation because upstream
+  `tml-renderers` has no Windows wheel. The documented path is Docker, Linux, or WSL. A clean
+  Docker build reached locked dependency installation but the package mirror stopped making
+  progress; the Dockerfile now retains uv's BuildKit cache and retries slow downloads.
