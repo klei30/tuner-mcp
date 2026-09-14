@@ -16,7 +16,7 @@ from tuner.models import DatasetSpec
 from tuner.preview import render_preview
 from tuner.recipes import cookbook_available
 from tuner.settings import Settings
-from tuner.store import RunStore, fingerprint
+from tuner.store import RunStore, fingerprint, utc_now
 
 OPERATION_TOOLS = [
     "objects_list",
@@ -74,6 +74,51 @@ def _export_with_cookbook(
             base_model=base_model, adapter_path=str(downloaded), output_path=str(output_dir)
         )
     return {"adapter_path": str(downloaded), "output_path": str(output_dir)}
+
+
+async def _run_local_export(
+    store: RunStore,
+    export_id: str,
+    export_format: str,
+    tinker_path: str,
+    base_model: str,
+    workdir: str,
+) -> dict[str, Any]:
+    """Run blocking conversion while exposing heartbeat and stop acknowledgement."""
+    task = asyncio.create_task(
+        asyncio.to_thread(
+            _export_with_cookbook,
+            export_format,
+            tinker_path,
+            base_model,
+            workdir,
+        )
+    )
+    try:
+        while not task.done():
+            done, _ = await asyncio.wait({task}, timeout=1)
+            if done:
+                break
+            current = store.get(export_id)
+            if current["status"] == "stop_requested":
+                task.cancel()
+                store.update(
+                    export_id,
+                    status="interrupted",
+                    error={
+                        "code": "CANCELLED",
+                        "message": "Export stop request acknowledged; local conversion may finish.",
+                    },
+                )
+                raise TunerError(
+                    "CANCELLED",
+                    "Export stop request acknowledged; local conversion may finish.",
+                )
+            store.update(export_id, heartbeat=utc_now(), execution_phase="converting")
+        return await task
+    except asyncio.CancelledError:
+        task.cancel()
+        raise
 
 
 def register_operations(
@@ -345,8 +390,9 @@ def register_operations(
                             context={"free_bytes": free},
                         )
                     assert base_model is not None
-                    artifacts = await asyncio.to_thread(
-                        _export_with_cookbook,
+                    artifacts = await _run_local_export(
+                        store,
+                        export_id,
                         format,
                         tinker_path,
                         base_model,

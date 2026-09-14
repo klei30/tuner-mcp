@@ -22,7 +22,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 # Cookbook brings CPU PyTorch for local renderers, tensor preparation, and
 # recipe-specific losses. Tinker continues to execute GPU work remotely.
-RUN uv sync --frozen --no-dev --no-install-project
+RUN UV_HTTP_TIMEOUT=120 uv sync --frozen --no-dev --no-install-project
 
 COPY src ./src
 RUN uv sync --frozen --no-dev

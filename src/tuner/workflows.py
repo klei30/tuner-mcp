@@ -130,6 +130,13 @@ def build_config(
             max_tokens=r.max_tokens,
             temperature=r.temperature,
             kl_penalty_coef=r.kl_penalty_coef,
+            kl_reference_config=_construct(
+                train.KLReferenceConfig,
+                base_model=request.model,
+                load_checkpoint_path=t.load_checkpoint_path,
+            )
+            if r.kl_penalty_coef > 0
+            else None,
             kl_discount_factor=r.kl_discount_factor,
             num_substeps=r.num_substeps,
             loss_fn=r.loss_fn,

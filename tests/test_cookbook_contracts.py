@@ -67,7 +67,7 @@ def test_actual_workflow_configs(tmp_path, rendering, method):
         "training": {"batch_size": 1, "max_steps": 1, "learning_rate": 0.00001},
     }
     if method == "rl":
-        request = TrainRLRequest.model_validate(config)
+        request = TrainRLRequest.model_validate({**config, "rl": {"kl_penalty_coef": 0.1}})
     elif method == "dpo":
         dataset.write_text(json.dumps({"prompt": "Q", "chosen": "A", "rejected": "B"}) + "\n")
         request = TrainDPORequest.model_validate(
@@ -96,6 +96,8 @@ def test_actual_workflow_configs(tmp_path, rendering, method):
     assert built.model_name == "example"
     assert built.max_steps == 1
     assert built.learning_rate == 0.00001
+    if method == "rl":
+        assert built.kl_reference_config.base_model == "example"
 
 
 async def test_sft_config_passes_real_chz_validation(tmp_path, monkeypatch):

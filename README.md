@@ -265,7 +265,9 @@ reconciliation; it does not replay training. Cancellation stops local orchestrat
 already submitted remote work may continue. `training_resume` starts a new SFT
 attempt from saved optimizer/epoch/batch state; `train_dpo`, `train_rl` and
 `train_distill` are exposed. Typed SFT and DPO have completed bounded live verification;
-typed RL and distillation remain import/config verified until a paid live run is performed.
+typed RL and distillation have also completed bounded live verification. The current
+public-release evidence and remaining clean-machine gate are tracked in
+[`docs/RELEASE_TEST_MATRIX.md`](docs/RELEASE_TEST_MATRIX.md).
 
 `training_metrics` returns recent metrics before completion. Pass `cursor=0` to
 page complete JSONL records and use the returned byte cursor for the next page.
@@ -281,7 +283,8 @@ Evaluation is marked as mutating because it creates run records and artifacts.
 through Docket and return a `run_id` promptly; native task clients get progress
 the same way. `checkpoint_export` returns a signed archive URL (`tinker_archive`)
 or builds a PEFT adapter / merged HF model (`peft`/`hf_merged`, Linux/WSL only,
-needs free disk); all formats are live-unverified.
+needs free disk). Signed Tinker archive export is live verified; PEFT and merged-HF
+exports still require their dedicated disk-intensive release checks.
 
 ## MCP client configuration
 

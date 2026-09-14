@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any
 
@@ -117,6 +118,42 @@ async def test_export_peft_success_with_fake_builder(tmp_path: Path, monkeypatch
         )
         assert result.data["format"] == "peft"
         assert result.data["output_path"].endswith("peft_adapter")
+
+
+async def test_export_peft_stop_is_acknowledged(tmp_path: Path, monkeypatch) -> None:
+    import asyncio
+
+    import tuner.operations as ops
+
+    monkeypatch.setattr(ops, "cookbook_available", lambda: True)
+
+    def slow_builder(fmt, path, model, workdir):
+        time.sleep(5)
+        return {"adapter_path": workdir, "output_path": workdir}
+
+    monkeypatch.setattr(ops, "_export_with_cookbook", slow_builder)
+    server = _server(tmp_path, monkeypatch)
+    async with Client(server) as client:
+        export = asyncio.create_task(
+            client.call_tool(
+                "checkpoint_export",
+                {
+                    "tinker_path": "tinker://run-1/weights/0001",
+                    "format": "peft",
+                    "base_model": "Qwen/Qwen3-8B",
+                    "idempotency_key": "slow-export",
+                },
+                raise_on_error=False,
+            )
+        )
+        await asyncio.sleep(0.1)
+        runs = await client.call_tool("training_list", {"source": "local", "limit": 5})
+        export_id = next(row["run_id"] for row in runs.data["runs"] if row["kind"] == "export")
+        await client.call_tool("training_stop", {"run_id": export_id})
+        await asyncio.wait_for(export, timeout=2)
+        record = await client.call_tool("training_get", {"run_id": export_id, "source": "local"})
+        assert record.data["status"] == "interrupted"
+        assert record.data["error"]["code"] == "CANCELLED"
 
 
 async def test_export_requires_api_key(tmp_path: Path, monkeypatch) -> None:
