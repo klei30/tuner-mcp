@@ -134,9 +134,7 @@ def _export_native_peft(archive_url: str, workdir: str) -> dict[str, Any]:
     return {"adapter_path": str(output_dir), "output_path": str(output_dir)}
 
 
-def _export_merged_with_cookbook(
-    archive_url: str, base_model: str, workdir: str
-) -> dict[str, Any]:
+def _export_merged_with_cookbook(archive_url: str, base_model: str, workdir: str) -> dict[str, Any]:
     """Download a checkpoint and build a merged Hugging Face model.
 
     Blocking Cookbook/torch work; callers must run it in a worker thread.
@@ -180,9 +178,7 @@ async def _run_local_export(
         pending = asyncio.to_thread(_export_native_peft, archive_url, workdir)
     else:
         assert base_model is not None
-        pending = asyncio.to_thread(
-            _export_merged_with_cookbook, archive_url, base_model, workdir
-        )
+        pending = asyncio.to_thread(_export_merged_with_cookbook, archive_url, base_model, workdir)
     task = asyncio.create_task(pending)
     try:
         while not task.done():
@@ -335,6 +331,7 @@ def register_operations(
     mcp: FastMCP, settings: Settings, store: RunStore, sdk: TinkerAdapter, error
 ) -> None:
     _EXPORT_RUNTIMES[str(settings.state_dir.resolve())] = (settings, store, sdk)
+
     @mcp.tool(annotations={"readOnlyHint": True})
     def objects_list(
         kind: Literal["dataset", "plan", "recipe_plan", "experiment_plan"],
