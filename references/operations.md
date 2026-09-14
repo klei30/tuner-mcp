@@ -48,9 +48,14 @@ Read actual values from `capabilities_get`. Tuner estimates workload units where
 
 Use `background=true` or plan-start tools for long work. Store the returned local run/task IDs. Idempotency is scoped to an operation and protects against duplicate submission.
 
-`training_stop` stops local orchestration and prevents further safe-boundary work. Requests already accepted by Tinker may continue remotely. A local deadline such as native recipe `max_duration_seconds` has the same limitation. Do not repeatedly retry a non-idempotent or unknown-state operation.
+`training_stop` stops local orchestration and prevents further safe-boundary work. Requests already accepted by Tinker may continue remotely. A local deadline such as native recipe `max_duration_seconds` has the same limitation. Do not repeatedly retry a non-idempotent or unknown-state operation. For typed SFT, the stored `max_steps` and emitted metric steps are authoritative even if an upstream Cookbook log line also prints the uncapped epoch batch count.
 
 Startup marks stale active runs as needing reconciliation; it does not replay them. Inspect local and remote state before deciding whether resume is safe. Current generic resume support is typed SFT only.
+
+Default `training_logs` responses inline only metrics and checkpoint JSONL. Use an exact
+`artifact_path` and its byte cursor to read comparisons, rollouts, or worker logs without
+oversized responses. `dataset_render_preview` accepts immutable typed SFT and DPO plans;
+DPO previews render both chosen and rejected completions through the official Cookbook path.
 
 ## Error handling
 

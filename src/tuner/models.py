@@ -287,6 +287,10 @@ TrainingRequest = TrainSFTRequest | TrainDPORequest | TrainRLRequest | TrainDist
 
 class PrepareDatasetRequest(StrictModel):
     deduplicate: bool = False
+    invalid_record_policy: Literal["error", "skip"] = Field(
+        default="error",
+        description="Fail on invalid rows, or skip them and report removal counts",
+    )
     shuffle_seed: int | None = None
     validation_records: int = Field(default=0, ge=0)
     input_field: str | None = Field(default=None, description="Context appended to the instruction")
@@ -307,6 +311,12 @@ class PrepareDatasetRequest(StrictModel):
         default=None,
         description="Row field for the assistant turn (instruction-style rows, e.g. 'cmd')",
     )
+    preference_prompt_field: str | None = Field(
+        default=None,
+        description="Row field for the shared preference prompt, e.g. 'instruction'",
+    )
+    chosen_field: str = Field(default="chosen", min_length=1)
+    rejected_field: str = Field(default="rejected", min_length=1)
     output_type: Literal["conversation_jsonl", "preference_jsonl", "prompt_jsonl"] = (
         "conversation_jsonl"
     )
@@ -325,6 +335,10 @@ class PrepareDatasetRequest(StrictModel):
 
 class HFFetchRequest(StrictModel):
     deduplicate: bool = False
+    invalid_record_policy: Literal["error", "skip"] = Field(
+        default="error",
+        description="Fail on invalid rows, or skip them and report removal counts",
+    )
     shuffle_seed: int | None = None
     validation_records: int = Field(default=0, ge=0)
     input_field: str | None = Field(default=None, description="Context appended to the instruction")
@@ -353,6 +367,12 @@ class HFFetchRequest(StrictModel):
         default=None,
         description="Row field for the assistant turn (instruction-style rows, e.g. 'cmd')",
     )
+    preference_prompt_field: str | None = Field(
+        default=None,
+        description="Row field for the shared preference prompt, e.g. 'instruction'",
+    )
+    chosen_field: str = Field(default="chosen", min_length=1)
+    rejected_field: str = Field(default="rejected", min_length=1)
     max_records: int = Field(default=10000, ge=1, le=1000000)
 
 

@@ -159,6 +159,28 @@ def test_preview_uses_real_tensor_weights_and_truncation(tmp_path, monkeypatch):
     assert all_tokens["valid"]
 
 
+def test_preview_renders_both_dpo_completions(tmp_path, monkeypatch):
+    from tinker_cookbook import tokenizer_utils
+
+    from tuner.models import DatasetSpec
+    from tuner.preview import render_preview
+
+    monkeypatch.setattr(tokenizer_utils, "get_tokenizer", lambda _: Tokenizer())
+    path = tmp_path / "preferences.jsonl"
+    path.write_text(
+        json.dumps({"prompt": "Question", "chosen": "Good answer", "rejected": "Bad answer"}) + "\n"
+    )
+    settings = Settings(state_dir=tmp_path / "state", allowed_roots=(tmp_path,))
+    dataset = DatasetSpec(type="preference_jsonl", path=str(path))
+    preview = render_preview(dataset, "example", "role_colon", settings, max_length=512)
+    assert preview["method"] == "dpo"
+    assert preview["valid"]
+    assert preview["examples"][0]["chosen"]["loss_token_count"] > 0
+    assert preview["examples"][0]["rejected"]["loss_token_count"] > 0
+    assert not preview["examples"][0]["chosen"]["truncated"]
+    assert not preview["examples"][0]["rejected"]["truncated"]
+
+
 async def test_custom_dataset_uses_official_message_environment(tmp_path):
     from tinker_cookbook.eval.benchmarks._types import BenchmarkConfig
     from tinker_cookbook.renderers.role_colon import RoleColonRenderer

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import Any, Literal
 
 from docket import Docket
@@ -477,8 +478,9 @@ def create_server(
             listing = list_artifacts(root, offset, 100)
             artifacts = {}
             remaining = settings.max_artifact_bytes
+            inline_names = {"metrics.jsonl", "checkpoints.jsonl"}
             for item in listing["artifacts"]:
-                if item["path"].endswith(".jsonl") and remaining:
+                if Path(item["path"]).name in inline_names and remaining:
                     rows = read_jsonl(root / item["path"], max_lines, remaining)
                     size = len(json.dumps(rows).encode())
                     if size <= remaining:

@@ -85,6 +85,76 @@ def test_map_preference_and_prompt() -> None:
     ) == {"prompt": "Summarize this"}
 
 
+def test_map_preference_with_explicit_hub_fields() -> None:
+    mapped = map_hf_row(
+        {
+            "instruction": "Explain DPO",
+            "chosen_response": "A clear answer",
+            "rejected_response": "A weak answer",
+        },
+        output_type="preference_jsonl",
+        message_field="messages",
+        preference_prompt_field="instruction",
+        chosen_field="chosen_response",
+        rejected_field="rejected_response",
+        index=1,
+    )
+    assert mapped == {
+        "prompt": "Explain DPO",
+        "chosen": "A clear answer",
+        "rejected": "A weak answer",
+    }
+
+
+def test_map_preference_strips_repeated_prompt_from_full_conversations() -> None:
+    prompt = [{"role": "user", "content": "Explain DPO"}]
+    mapped = map_hf_row(
+        {
+            "prompt": prompt,
+            "chosen": [*prompt, {"role": "assistant", "content": "A clear answer"}],
+            "rejected": [*prompt, {"role": "assistant", "content": "A weak answer"}],
+        },
+        output_type="preference_jsonl",
+        message_field="messages",
+        index=1,
+    )
+    assert mapped == {
+        "messages": prompt,
+        "chosen": [{"role": "assistant", "content": "A clear answer"}],
+        "rejected": [{"role": "assistant", "content": "A weak answer"}],
+    }
+
+
+def test_fetch_can_skip_invalid_preference_rows(tmp_path: Path, monkeypatch) -> None:
+    seen: dict = {}
+    _install_fake_datasets(
+        monkeypatch,
+        [
+            {"prompt": "Q1", "chosen": "same", "rejected": "same"},
+            {"prompt": "Q2", "chosen": "good", "rejected": "bad"},
+        ],
+        seen,
+    )
+    settings = _settings(tmp_path)
+    record = fetch_hf_dataset(
+        HFFetchRequest(
+            hf_repo="org/name",
+            hf_revision=REVISION,
+            output_type="preference_jsonl",
+            max_records=2,
+            invalid_record_policy="skip",
+        ),
+        settings,
+        RunStore(settings.state_dir / "runs"),
+    )
+    assert record["records"] == 1
+    assert record["transform"]["scanned_records"] == 2
+    assert record["transform"]["invalid_records_removed"] == 1
+    assert record["transform"]["invalid_record_reasons"] == {
+        "Chosen and rejected completions are identical.": 1
+    }
+
+
 def test_fetch_conversation_end_to_end(tmp_path: Path, monkeypatch) -> None:
     seen: dict = {}
     _install_fake_datasets(
@@ -204,6 +274,19 @@ def test_map_instruction_style_fields() -> None:
             assistant_field="cmd",
         )
 
+    assert (
+        map_hf_row(
+            {"instruction": "List files", "input": None, "cmd": "ls"},
+            output_type="conversation_jsonl",
+            message_field="messages",
+            index=3,
+            user_field="instruction",
+            assistant_field="cmd",
+            input_field="input",
+        )["messages"][0]["content"]
+        == "List files"
+    )
+
 
 def test_tool_declarations_are_rendered_into_conversation(tmp_path: Path) -> None:
     source = tmp_path / "source.jsonl"
@@ -299,6 +382,51 @@ def test_probe_reports_required_config_and_compatible_mapping(monkeypatch) -> No
         },
         {"output_type": "prompt_jsonl"},
     ]
+
+
+def test_probe_suggests_preference_field_mapping(monkeypatch) -> None:
+    module = types.ModuleType("datasets")
+    module.get_dataset_config_names = lambda *args, **kwargs: ["default"]  # type: ignore[attr-defined]
+    module.load_dataset = lambda *args, **kwargs: iter(  # type: ignore[attr-defined]
+        [
+            {
+                "instruction": "Explain DPO",
+                "chosen_response": "Good",
+                "rejected_response": "Bad",
+            }
+        ]
+    )
+    monkeypatch.setitem(sys.modules, "datasets", module)
+    result = probe_hf_dataset(HFProbeRequest(hf_repo="org/dpo", hf_revision=REVISION))
+    assert {
+        "output_type": "preference_jsonl",
+        "preference_prompt_field": "instruction",
+        "chosen_field": "chosen_response",
+        "rejected_field": "rejected_response",
+    } in result["mapping_options"]
+
+
+def test_probe_skips_config_discovery_when_config_is_explicit(monkeypatch) -> None:
+    module = types.ModuleType("datasets")
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("explicit config must skip discovery")
+
+    module.get_dataset_config_names = unexpected  # type: ignore[attr-defined]
+    module.load_dataset = lambda *args, **kwargs: iter(  # type: ignore[attr-defined]
+        [{"prompt": "Q", "chosen": "Good", "rejected": "Bad"}]
+    )
+    monkeypatch.setitem(sys.modules, "datasets", module)
+    result = probe_hf_dataset(
+        HFProbeRequest(hf_repo="org/dpo", hf_revision=REVISION, hf_config="default")
+    )
+    assert result["hf_config"] == "default"
+    assert result["config_names"] == []
+    assert {
+        "output_type": "preference_jsonl",
+        "chosen_field": "chosen",
+        "rejected_field": "rejected",
+    } in result["mapping_options"]
 
 
 def test_search_rejects_bad_input() -> None:

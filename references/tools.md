@@ -25,7 +25,7 @@ This catalog covers the 48 tools exposed by the current server. Runtime MCP sche
 | `dataset_prepare` | Stage and validate an allowed local dataset or pinned HF dataset as persistent prepared data. |
 | `dataset_validate` | Validate an allowed local/prepared dataset and report malformed record indexes. |
 | `dataset_inspect` | Validate and return a bounded sample for human quality inspection. |
-| `dataset_render_preview` | Render examples with a model/renderer or SFT plan and inspect tokens, truncation, tool prefixes, and loss masks. |
+| `dataset_render_preview` | Render examples with a model/renderer or SFT/DPO plan and inspect tokens, truncation, tool prefixes, and loss masks. |
 
 ## Training submission and lifecycle
 

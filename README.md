@@ -145,7 +145,7 @@ The workspace-specific service connects to Redis as
 volume. For an update
 to the existing installation, build `docker build -t tuner-mcp:candidate .`, run
 `./scripts/deploy.ps1`, then `./scripts/doctor.ps1`. Deployment checks for active
-runs and retains the old container for rollback. It reads the existing Windows
+runs and retains the old image under a timestamped rollback tag. It reads the existing Windows
 user credentials without printing them. Never run both servers against the same
 queue/state at once. A client MCP restart may be needed to attach updated tools.
 
@@ -206,6 +206,15 @@ automatically, JSON-encoded message strings are parsed), preference triples, or 
 the record index and available fields. Gated repos need `HF_TOKEN` in the server environment. `dataset_prepare`
 accepts the same `hf_repo`/`hf_revision` pair for one-step local-or-HF staging.
 
+Preference datasets can map common Hub field names explicitly with
+`preference_prompt_field`, `chosen_field`, and `rejected_field`. The probe
+returns these selectors when it recognizes fields such as
+`instruction`/`chosen_response`/`rejected_response`; staged output always uses
+canonical `prompt` or `messages`, `chosen`, and `rejected` keys. Full-conversation
+chosen/rejected rows that repeat the shared prompt are normalized to assistant-only
+completions. Set `invalid_record_policy` to `skip` to omit invalid rows and record
+removal counts in the transform manifest; the default `error` policy fails preparation.
+
 Conversation rows may carry a top-level `tools` list. Tuner preserves tool
 schemas, tool call IDs, assistant calls with null content, tool results, and
 Cookbook message fields such as `name` and `unparsed_tool_calls`.
@@ -255,12 +264,13 @@ cancellation records and heartbeats. Startup marks stale active runs as needing
 reconciliation; it does not replay training. Cancellation stops local orchestration;
 already submitted remote work may continue. `training_resume` starts a new SFT
 attempt from saved optimizer/epoch/batch state; `train_dpo`, `train_rl` and
-`train_distill` are exposed but live-unverified (no paid run yet).
+`train_distill` are exposed. Typed SFT and DPO have completed bounded live verification;
+typed RL and distillation remain import/config verified until a paid live run is performed.
 
 `training_metrics` returns recent metrics before completion. Pass `cursor=0` to
 page complete JSONL records and use the returned byte cursor for the next page.
-`training_logs` lists nested artifacts; pass `artifact_path` and `cursor` to read
-bounded chunks. `TUNER_MAX_ARTIFACT_BYTES` caps each read. Training admission also
+`training_logs` lists nested artifacts and inlines only metrics/checkpoint JSONL by default;
+pass `artifact_path` and `cursor` to read bounded chunks. `TUNER_MAX_ARTIFACT_BYTES` caps each read. Training admission also
 checks `TUNER_MAX_BATCH_SIZE`, `TUNER_MAX_INPUT_TOKENS` and
 `TUNER_MAX_CONCURRENT_RUNS`.
 

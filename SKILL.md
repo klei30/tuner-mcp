@@ -44,7 +44,7 @@ For Hugging Face data:
 3. Pass the returned repository and full 40-character commit SHA to `dataset_probe_hf`. Inspect configs, splits, sampled rows, and suggested mapping.
 4. Call `dataset_fetch_hf` with that pinned SHA, exact mapping, record bound, deterministic shuffle seed when useful, deduplication choice, and validation count.
 5. Use the returned prepared dataset IDs with `dataset_validate` and `dataset_inspect`. Inspect actual samples for contamination, OCR damage, empty answers, language mismatch, unsafe content, and task mismatch.
-6. Call `dataset_render_preview` for the selected model/renderer or SFT plan. Resolve truncation, invalid loss masks, and blockers before training.
+6. Call `dataset_render_preview` for the selected model/renderer or SFT/DPO plan. Resolve truncation, invalid loss masks, and blockers before training.
 
 `max_records` bounds the source scan before transformations. A validation split is carved from that bounded set. Preserve the returned fingerprint, source revision, mapping, hashes, train count, and validation count in the final report.
 
@@ -57,7 +57,7 @@ Before execution, make the plan explicit:
 - model and model suitability
 - training method or recipe
 - prepared dataset or native recipe input
-- renderer and loss-mask policy
+- renderer and loss-mask policy; prefer the last assistant turn when the renderer lacks the sequence-extension property
 - maximum steps and batch size
 - LoRA rank and learning rate when set
 - checkpoint cadence and retention

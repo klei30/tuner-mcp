@@ -53,6 +53,15 @@ Preference JSONL represents one context with chosen and rejected continuations. 
 
 Use `user_field` and `assistant_field` for instruction-style rows and `input_field` for context appended to the instruction. Use the mapping returned by `dataset_probe_hf`.
 
+For preference rows, set `output_type` to `preference_jsonl` and pass the
+probe's `preference_prompt_field`, `chosen_field`, and `rejected_field` values.
+Tuner canonicalizes them to a shared prompt plus `chosen` and `rejected`
+responses before DPO validation. It strips a repeated prompt from full-conversation
+chosen/rejected values. The default `invalid_record_policy: "error"` rejects dirty
+data; opt into `"skip"` to omit invalid rows and preserve counts and reasons in the
+dataset transform manifest. `max_records` continues to bound source rows scanned,
+so skipped rows reduce the prepared count.
+
 ## Typed SFT plan
 
 ```json
@@ -67,7 +76,7 @@ Use `user_field` and `assistant_field` for instruction-style rows and `input_fie
       "lora_rank": 8,
       "shuffle_seed": 30,
       "renderer": "RENDERER_FROM_MODEL_METADATA",
-      "train_on": "all_assistant"
+      "train_on": "last_assistant"
     },
     "checkpointing": {"every_steps":1,"rolling_every":1}
   },
@@ -193,7 +202,7 @@ Resume is currently typed SFT only. Use one of `additional_steps`, intended tota
 ## Usage
 
 ```json
-{"starting_on":"2026-09-14T00:00:00Z","ending_before":"2026-09-15T00:00:00Z"}
+{"starting_on":"2026-09-14","ending_before":"2026-09-15"}
 ```
 
 Treat this as a half-open interval and reproduce the returned quantities and units exactly.

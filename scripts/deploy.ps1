@@ -1,7 +1,7 @@
-# Deploy an already-built candidate, preserving the existing state and rollback container.
+# Deploy an already-built candidate, preserving external state and a rollback image.
 $ErrorActionPreference = 'Stop'
 $tunerProject = Split-Path $PSScriptRoot -Parent
-$tunerBackup = 'tuner-mcp-backup-' + (Get-Date -Format 'yyyyMMddHHmmss')
+$tunerBackup = 'tuner-mcp:backup-' + (Get-Date -Format 'yyyyMMddHHmmss')
 $tunerOldKey = $env:TINKER_API_KEY
 $tunerOldToken = $env:TUNER_AUTH_TOKEN
 $tunerReplaced = $false
@@ -24,24 +24,24 @@ raise SystemExit(bool(active))
     if ($LASTEXITCODE -ne 0) { throw 'Deployment requires no active runs.' }
     docker exec tuner-test-redis redis-cli ping
     if ($LASTEXITCODE -ne 0) { throw 'Redis must be running.' }
+    $tunerCurrentImage = docker inspect tuner-mcp-http --format '{{.Image}}'
+    if ($LASTEXITCODE -ne 0 -or -not ($tunerCurrentImage -join '').Trim()) {
+        throw 'Could not resolve the current Tuner image.'
+    }
+    docker tag ($tunerCurrentImage -join '').Trim() $tunerBackup
+    if ($LASTEXITCODE -ne 0) { throw 'Could not preserve the rollback image.' }
     docker tag tuner-mcp:candidate tuner-mcp:local
     if ($LASTEXITCODE -ne 0) { throw 'Image tagging failed.' }
-    docker stop tuner-mcp-http
+    docker compose --project-directory $tunerProject stop tuner
     if ($LASTEXITCODE -ne 0) { throw 'Could not stop the old server.' }
-    docker rename tuner-mcp-http $tunerBackup
-    if ($LASTEXITCODE -ne 0) { docker start tuner-mcp-http; throw 'Backup rename failed.' }
     $tunerReplaced = $true
-    docker update --restart=no $tunerBackup
-    if ($LASTEXITCODE -ne 0) { throw 'Could not disable backup autostart.' }
-    docker compose --project-directory $tunerProject up -d --no-build
+    docker compose --project-directory $tunerProject up -d --no-build --force-recreate tuner
     if ($LASTEXITCODE -ne 0) { throw 'Updated server failed to start.' }
-    Write-Output "Deployed candidate. Rollback container: $tunerBackup. Run scripts/doctor.ps1 after startup."
+    Write-Output "Deployed candidate. Rollback image: $tunerBackup. Run scripts/doctor.ps1 after startup."
 } catch {
     if ($tunerReplaced) {
-        docker compose --project-directory $tunerProject down
-        docker rename $tunerBackup tuner-mcp-http
-        docker update --restart=unless-stopped tuner-mcp-http
-        docker start tuner-mcp-http
+        docker tag $tunerBackup tuner-mcp:local
+        docker compose --project-directory $tunerProject up -d --no-build --force-recreate tuner
     }
     throw
 } finally {

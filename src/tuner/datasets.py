@@ -6,7 +6,7 @@ import random
 import urllib.parse
 import urllib.request
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import replace
 from importlib import import_module
 from pathlib import Path
@@ -259,6 +259,18 @@ def _sharegpt_to_messages(value: Any) -> list[dict[str, str]] | None:
     return messages
 
 
+def _strip_repeated_preference_prompt(prompt: str | list[Any], completion: Any) -> Any:
+    """Return an assistant completion when a Hub row stores a full conversation."""
+    if not isinstance(completion, list):
+        return completion
+    prompt_messages: list[Any] = (
+        prompt if isinstance(prompt, list) else [{"role": "user", "content": prompt}]
+    )
+    if prompt_messages and completion[: len(prompt_messages)] == prompt_messages:
+        return completion[len(prompt_messages) :]
+    return completion
+
+
 def map_hf_row(
     row: Any,
     *,
@@ -268,6 +280,9 @@ def map_hf_row(
     user_field: str | None = None,
     assistant_field: str | None = None,
     input_field: str | None = None,
+    preference_prompt_field: str | None = None,
+    chosen_field: str = "chosen",
+    rejected_field: str = "rejected",
 ) -> dict[str, Any]:
     """Map one Hugging Face row to a Tuner record; raises DATASET_ERROR with context."""
     keys = sorted(row.keys()) if isinstance(row, dict) else []
@@ -296,7 +311,9 @@ def map_hf_row(
             user_text, assistant_text = row.get(user_field), row.get(assistant_field)
             if input_field:
                 context = row.get(input_field)
-                if not isinstance(context, str):
+                if context is None:
+                    context = ""
+                elif not isinstance(context, str):
                     raise TunerError(
                         "DATASET_ERROR", f"HF record {index}: input field must be text."
                     )
@@ -326,16 +343,38 @@ def map_hf_row(
             if key != "messages" and key in row
         } | {"messages": messages}
     if output_type == "preference_jsonl":
-        if (
-            ("prompt" not in row and "messages" not in row)
-            or "chosen" not in row
-            or ("rejected" not in row)
-        ):
+        prompt_field = preference_prompt_field or (
+            "prompt" if "prompt" in row else "messages" if "messages" in row else None
+        )
+        if prompt_field is None or chosen_field not in row or rejected_field not in row:
             raise TunerError(
                 "DATASET_ERROR",
-                f"HF record {index} needs prompt/messages plus chosen and rejected; keys: {keys}.",
+                f"HF record {index} needs a shared prompt plus chosen and rejected fields; "
+                f"keys: {keys}.",
             )
-        return {key: row[key] for key in ("prompt", "messages", "chosen", "rejected") if key in row}
+        prompt = row.get(prompt_field)
+        chosen, rejected = row.get(chosen_field), row.get(rejected_field)
+        if not isinstance(prompt, (str, list)) or not prompt:
+            raise TunerError(
+                "DATASET_ERROR", f"HF record {index}: preference prompt must be text or messages."
+            )
+        if not isinstance(chosen, (str, list)) or not chosen:
+            raise TunerError(
+                "DATASET_ERROR", f"HF record {index}: chosen preference must be text or messages."
+            )
+        if not isinstance(rejected, (str, list)) or not rejected:
+            raise TunerError(
+                "DATASET_ERROR", f"HF record {index}: rejected preference must be text or messages."
+            )
+        chosen = _strip_repeated_preference_prompt(prompt, chosen)
+        rejected = _strip_repeated_preference_prompt(prompt, rejected)
+        if not chosen or not rejected:
+            raise TunerError(
+                "DATASET_ERROR",
+                f"HF record {index}: preference completion is empty after removing its prompt.",
+            )
+        prompt_key = "messages" if isinstance(prompt, list) else "prompt"
+        return {prompt_key: prompt, "chosen": chosen, "rejected": rejected}
     text = row.get("prompt", row.get("text", row.get("instruction")))
     if not isinstance(text, str) or not text:
         raise TunerError(
@@ -439,12 +478,25 @@ def _mapping_options(row: dict[str, Any]) -> list[dict[str, Any]]:
                     ),
                 }
             )
-    if (
-        "chosen" in row
-        and "rejected" in row
-        and (isinstance(row.get("prompt"), str) or isinstance(row.get("messages"), list))
-    ):
-        options.append({"output_type": "preference_jsonl"})
+    preference_prompts = ("prompt", "messages", "instruction", "question", "query", "input")
+    chosen_fields = ("chosen", "chosen_response")
+    rejected_fields = ("rejected", "rejected_response")
+    preference_prompt = next(
+        (name for name in preference_prompts if isinstance(row.get(name), (str, list))), None
+    )
+    chosen = next((name for name in chosen_fields if isinstance(row.get(name), (str, list))), None)
+    rejected = next(
+        (name for name in rejected_fields if isinstance(row.get(name), (str, list))), None
+    )
+    if preference_prompt and chosen and rejected:
+        option: dict[str, Any] = {
+            "output_type": "preference_jsonl",
+            "chosen_field": chosen,
+            "rejected_field": rejected,
+        }
+        if preference_prompt not in {"prompt", "messages"}:
+            option["preference_prompt_field"] = preference_prompt
+        options.append(option)
     if any(isinstance(row.get(name), str) for name in ("prompt", "text", "instruction")):
         options.append({"output_type": "prompt_jsonl"})
     return options
@@ -455,7 +507,7 @@ def probe_hf_dataset(request: HFProbeRequest) -> dict[str, Any]:
     module = _hf_datasets_module()
     config_names: list[str] = []
     get_configs = getattr(module, "get_dataset_config_names", None)
-    if get_configs is not None:
+    if request.hf_config is None and get_configs is not None:
         try:
             config_names = list(
                 get_configs(
@@ -537,6 +589,7 @@ def _write_prepared(
     settings: Settings,
     store: RunStore,
     source_hash: str | None = None,
+    row_mapper: Callable[[Any, int], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Bounded, deterministic transformations shared by local and Hub preparation."""
     from itertools import islice
@@ -545,9 +598,31 @@ def _write_prepared(
     folder.mkdir(parents=True, exist_ok=True)
     selected = []
     seen = set()
-    scanned = duplicates = size = 0
-    for row in islice(rows, request.max_records):
+    scanned = duplicates = invalid = size = 0
+    invalid_reasons: dict[str, int] = {}
+    for source_row in islice(rows, request.max_records):
         scanned += 1
+        try:
+            row = row_mapper(source_row, scanned) if row_mapper else source_row
+            if request.invalid_record_policy == "skip":
+                if not isinstance(row, dict):
+                    raise TunerError("DATASET_ERROR", "record must be an object")
+                if dtype == "conversation_jsonl":
+                    error = _validate_messages(row.get("messages")) or _validate_tools(
+                        row.get("tools")
+                    )
+                    if error:
+                        raise TunerError("DATASET_ERROR", error)
+                elif dtype == "preference_jsonl":
+                    preference_comparison(row)
+                elif dtype == "prompt_jsonl" and not isinstance(row.get("prompt"), str):
+                    raise TunerError("DATASET_ERROR", "prompt must be a string")
+        except TunerError as exc:
+            if request.invalid_record_policy == "error":
+                raise
+            invalid += 1
+            invalid_reasons[exc.message] = invalid_reasons.get(exc.message, 0) + 1
+            continue
         encoded = json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
         size += len(encoded.encode())
         if size > settings.max_dataset_bytes:
@@ -567,6 +642,8 @@ def _write_prepared(
         "version": 1,
         "scanned_records": scanned,
         "duplicates_removed": duplicates,
+        "invalid_records_removed": invalid,
+        "invalid_record_reasons": invalid_reasons,
         "source_sha256": source_hash,
         "selection": "first_max_records_then_transform",
         "shuffle_seed": request.shuffle_seed,
@@ -622,6 +699,7 @@ def prepare_dataset(
 ) -> dict[str, Any]:
     dtype = request.output_type
     source_hash = None
+    mapping_function: Callable[[Any, int], dict[str, Any]] | None = None
     if request.dataset:
         source = resolve_dataset_path(request.dataset, settings)
         source_hash = file_hash(source)
@@ -642,8 +720,10 @@ def prepare_dataset(
             streaming=True,
             trust_remote_code=False,
         )
-        rows = (
-            map_hf_row(
+        rows = stream
+
+        def map_source_row(row: Any, index: int) -> dict[str, Any]:
+            return map_hf_row(
                 row,
                 output_type=dtype,
                 message_field=request.message_field,
@@ -651,9 +731,13 @@ def prepare_dataset(
                 user_field=request.user_field,
                 assistant_field=request.assistant_field,
                 input_field=request.input_field,
+                preference_prompt_field=request.preference_prompt_field,
+                chosen_field=request.chosen_field,
+                rejected_field=request.rejected_field,
             )
-            for index, row in enumerate(stream, start=1)
-        )
+
+        mapping_function = map_source_row
+
     return _write_prepared(
         rows,
         request,
@@ -661,4 +745,5 @@ def prepare_dataset(
         settings,
         store,
         source_hash,
+        mapping_function,
     )

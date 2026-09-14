@@ -135,8 +135,11 @@ def register_operations(
                 if dataset is not None or model is not None or renderer is not None:
                     raise TunerError("INVALID_CONFIG", "Use plan_id alone for exact-plan preview.")
                 plan = store.get(plan_id)
-                if plan["kind"] != "plan" or plan["request"].get("method") != "sft":
-                    raise TunerError("INVALID_CONFIG", "Exact-plan preview currently requires SFT.")
+                if plan["kind"] != "plan" or plan["request"].get("method") not in {
+                    "sft",
+                    "dpo",
+                }:
+                    raise TunerError("INVALID_CONFIG", "Exact-plan preview requires SFT or DPO.")
                 if fingerprint(plan["request"]) != plan["configuration_hash"]:
                     raise TunerError("INVALID_CONFIG", "Stored plan configuration changed.")
                 request = plan["request"]
@@ -227,9 +230,16 @@ def register_operations(
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def usage_get(starting_on: str, ending_before: str) -> dict[str, Any]:
-        """Get account usage for an ISO date/time window; preserve upstream units."""
+        """Get account usage for a half-open YYYY-MM-DD date range; preserve upstream units."""
         try:
-            if datetime.fromisoformat(starting_on) >= datetime.fromisoformat(ending_before):
+            try:
+                start = datetime.strptime(starting_on, "%Y-%m-%d").date()
+                end = datetime.strptime(ending_before, "%Y-%m-%d").date()
+            except ValueError:
+                raise TunerError(
+                    "INVALID_CONFIG", "Usage dates must use YYYY-MM-DD format."
+                ) from None
+            if start >= end:
                 raise TunerError("INVALID_CONFIG", "Usage window must have a positive duration.")
             require_api_key(settings.has_api_key)
             return await sdk.usage(starting_on, ending_before)

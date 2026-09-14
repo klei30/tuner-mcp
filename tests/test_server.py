@@ -56,6 +56,33 @@ async def test_live_tool_fails_safely_without_key(tmp_path: Path, monkeypatch) -
         assert "TINKER_API_KEY" in str(result.content)
 
 
+async def test_usage_requires_upstream_date_format(tmp_path: Path, monkeypatch) -> None:
+    class FakeSDK:
+        async def usage(self, starting_on: str, ending_before: str) -> dict[str, str]:
+            return {"starting_on": starting_on, "ending_before": ending_before}
+
+    monkeypatch.setenv("TINKER_API_KEY", "test-placeholder-not-a-live-key")
+    server = create_server(
+        Settings(state_dir=tmp_path / "state"),
+        sdk_adapter=FakeSDK(),  # type: ignore[arg-type]
+    )
+    async with Client(server) as client:
+        valid = await client.call_tool(
+            "usage_get", {"starting_on": "2026-09-14", "ending_before": "2026-09-15"}
+        )
+        assert valid.data == {"starting_on": "2026-09-14", "ending_before": "2026-09-15"}
+        invalid = await client.call_tool(
+            "usage_get",
+            {
+                "starting_on": "2026-09-14T00:00:00Z",
+                "ending_before": "2026-09-15T00:00:00Z",
+            },
+            raise_on_error=False,
+        )
+        assert invalid.is_error
+        assert "YYYY-MM-DD" in str(invalid.content)
+
+
 class FakeCookbook(CookbookAdapter):
     async def train_sft(
         self, request: TrainSFTRequest, run_id: str, dataset_path: Path
@@ -136,6 +163,7 @@ async def test_metrics_and_nested_logs_visible_before_completion(tmp_path):
     path.mkdir()
     (path / "nested").mkdir()
     (path / "nested" / "metrics.jsonl").write_text('{"step": 3}\n')
+    (path / "nested" / "comparisons.jsonl").write_text('{"large": "payload"}\n')
     (path / "nested" / "report.html").write_text("<h1>Result</h1>")
     store.update(record["run_id"], status="running", log_path=str(path))
     async with Client(server) as client:
@@ -144,6 +172,7 @@ async def test_metrics_and_nested_logs_visible_before_completion(tmp_path):
         assert result.data["artifact_path"] == "nested/metrics.jsonl"
         logs = await client.call_tool("training_logs", {"run_id": record["run_id"]})
         assert "nested/report.html" in [item["path"] for item in logs.data["files"]]
+        assert logs.data["artifacts"] == {"nested/metrics.jsonl": [{"step": 3}]}
         invalid = await client.call_tool(
             "training_metrics", {"run_id": "run_../secret"}, raise_on_error=False
         )

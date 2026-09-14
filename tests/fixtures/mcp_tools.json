@@ -630,6 +630,15 @@
               "default": false,
               "type": "boolean"
             },
+            "invalid_record_policy": {
+              "default": "error",
+              "description": "Fail on invalid rows, or skip them and report removal counts",
+              "enum": [
+                "error",
+                "skip"
+              ],
+              "type": "string"
+            },
             "shuffle_seed": {
               "anyOf": [
                 {
@@ -724,6 +733,28 @@
               "default": null,
               "description": "Row field for the assistant turn (instruction-style rows, e.g. 'cmd')"
             },
+            "preference_prompt_field": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field for the shared preference prompt, e.g. 'instruction'"
+            },
+            "chosen_field": {
+              "default": "chosen",
+              "minLength": 1,
+              "type": "string"
+            },
+            "rejected_field": {
+              "default": "rejected",
+              "minLength": 1,
+              "type": "string"
+            },
             "max_records": {
               "default": 10000,
               "maximum": 1000000,
@@ -811,6 +842,15 @@
             "deduplicate": {
               "default": false,
               "type": "boolean"
+            },
+            "invalid_record_policy": {
+              "default": "error",
+              "description": "Fail on invalid rows, or skip them and report removal counts",
+              "enum": [
+                "error",
+                "skip"
+              ],
+              "type": "string"
             },
             "shuffle_seed": {
               "anyOf": [
@@ -939,6 +979,28 @@
               ],
               "default": null,
               "description": "Row field for the assistant turn (instruction-style rows, e.g. 'cmd')"
+            },
+            "preference_prompt_field": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field for the shared preference prompt, e.g. 'instruction'"
+            },
+            "chosen_field": {
+              "default": "chosen",
+              "minLength": 1,
+              "type": "string"
+            },
+            "rejected_field": {
+              "default": "rejected",
+              "minLength": 1,
+              "type": "string"
             },
             "output_type": {
               "default": "conversation_jsonl",
