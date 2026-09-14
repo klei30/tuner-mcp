@@ -251,9 +251,10 @@ class TinkerAdapter:
             if selected is None and request.target.checkpoint_path and request.prompt.messages:
                 selected = await self.checkpoint_renderer(request.target.checkpoint_path)
             prompt, renderer = await self._build_prompt(client, request.prompt, selected)
-            params = tinker.SamplingParams(**request.sampling.model_dump())
+            sampling_args = request.sampling.model_dump()
             if renderer is not None and request.sampling.stop is None:
-                params.stop = renderer.get_stop_sequences()
+                sampling_args["stop"] = renderer.get_stop_sequences()
+            params = tinker.SamplingParams(**sampling_args)
             response = await client.sample_async(
                 prompt,
                 num_samples=request.num_samples,

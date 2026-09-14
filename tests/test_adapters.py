@@ -1,4 +1,5 @@
 import asyncio
+from types import SimpleNamespace
 from typing import ClassVar
 
 import pytest
@@ -75,3 +76,44 @@ async def test_sampling_validation_failure_closes_service(monkeypatch) -> None:
     with pytest.raises(TunerError, match="INVALID_CONFIG"):
         await TinkerAdapter().sample(request)
     assert FakeServiceClient.instances[-1].status == "errored"
+
+
+async def test_sample_constructs_frozen_params_with_renderer_stops(monkeypatch) -> None:
+    from tuner.models import SampleRequest
+
+    captured: dict[str, object] = {}
+
+    class FakeSamplingClient:
+        async def sample_async(self, prompt, *, num_samples, sampling_params):
+            captured["stop"] = sampling_params.stop
+            return SimpleNamespace(sequences=[], prompt_logprobs=None, prompt_cache_hit_tokens=0)
+
+        def get_tokenizer(self):
+            return SimpleNamespace(decode=lambda _tokens: "")
+
+    class FakeRenderer:
+        def get_stop_sequences(self):
+            return [248046]
+
+    async def create_client(*_args):
+        return FakeSamplingClient()
+
+    async def build_prompt(*_args):
+        return object(), FakeRenderer()
+
+    FakeServiceClient.instances.clear()
+    monkeypatch.setattr(tinker, "ServiceClient", FakeServiceClient)
+    monkeypatch.setattr(TinkerAdapter, "_create_sampling_client", create_client)
+    monkeypatch.setattr(TinkerAdapter, "_build_prompt", build_prompt)
+    request = SampleRequest.model_validate(
+        {
+            "target": {"model": "example"},
+            "prompt": {"messages": [{"role": "user", "content": "hello"}]},
+        }
+    )
+
+    result = await TinkerAdapter().sample(request)
+
+    assert captured["stop"] == [248046]
+    assert result["samples"] == []
+    assert FakeServiceClient.instances[-1].status == "success"
