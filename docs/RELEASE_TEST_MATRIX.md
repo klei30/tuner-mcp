@@ -11,7 +11,7 @@ Live canaries use the smallest suitable Tinker chat model and one to three optim
 | Area | Status | Evidence |
 | --- | --- | --- |
 | MCP and infrastructure | Pass | Authenticated HTTP initialize, 48 tools, Redis persistence, Docker doctor |
-| Automated quality | Pass | 99 tests passed, 2 skipped; Ruff and Pyright pass |
+| Automated quality | Pass | 101 tests passed, 2 skipped; Ruff and Pyright pass |
 | Model and recipe discovery | Pass | Live models loaded; 34/34 recipe descriptors are import verified |
 | Dataset lifecycle | Pass | Search, probe, pinned fetch, prepare, split, validate, inspect, and render preview exercised |
 | SFT | Pass | Three-step run plus one-step checkpoint resume completed |
@@ -22,7 +22,7 @@ Live canaries use the smallest suitable Tinker chat model and one to three optim
 | Sampling and evaluation | Pass | Sampling and logprobs work; base and RL checkpoint scored 3/3 GSM8K with no truncation |
 | Checkpoint lifecycle | Partial | List, inspect, archive export, TTL, publish, unpublish, and delete passed; full PEFT/HF conversion remains |
 | Operational lifecycle | Pass | Metrics, bounded logs, artifacts, rollouts, stop idempotency, sessions, trace export, and usage exercised |
-| Clean-machine usability | Pending | Requires a separate machine or VM and an external tester |
+| Clean-machine usability | Partial | Clean public clone, Docker build, and isolated second-client smoke test pass; human sign-off remains |
 
 ## Tool coverage
 
@@ -60,13 +60,15 @@ third-party services and would duplicate the same execution engines.
 1. Rotate the release credentials. The artifact scan found zero copies of the currently
    configured key and token.
 2. Complete one PEFT conversion and one merged-HF conversion after Tinker archive generation
-   completes reliably. Two sampler-checkpoint attempts remained in archive generation for more
-   than 15 minutes and were stopped through MCP; merged-HF depends on the same download step.
-3. Install from the README on a clean VM with Codex and one other MCP client.
-4. Ask an external tester to complete the documented SFT workflow without repository help.
-5. Tag a release only after the clean-machine gate passes.
+   completes reliably. Three sampler-checkpoint attempts remained in archive generation for
+   15–18 minutes and were stopped through MCP; merged-HF depends on the same download step.
+3. Ask an external tester to complete the documented SFT workflow without repository help.
+4. Tag a release only after the external-user and export gates pass.
 
 Docker/Redis restart persistence and unauthorized HTTP (`401`) gates passed.
+A clean clone of public commit `c5712f8` built successfully in Docker. An isolated HTTP
+instance initialized from that image with 48 tools, Tuner `0.1.3`, Cookbook available, and
+34 recipe descriptors.
 
 ## Known limits
 
