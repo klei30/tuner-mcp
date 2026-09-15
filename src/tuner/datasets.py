@@ -669,6 +669,12 @@ def _write_prepared(
                     "Prepared dataset failed validation.",
                     context={"errors": report["errors"]},
                 )
+            source = request.model_dump(mode="json", exclude={"inline_records"})
+            if request.inline_records is not None:
+                source["inline"] = {
+                    "records": len(request.inline_records),
+                    "sha256": source_hash,
+                }
             staged.append(
                 {
                     "path": str(output),
@@ -677,7 +683,7 @@ def _write_prepared(
                     "records": len(lines),
                     "size_bytes": output.stat().st_size,
                     "role": role,
-                    "source": request.model_dump(mode="json"),
+                    "source": source,
                     "transform": manifest,
                 }
             )
@@ -709,6 +715,13 @@ def prepare_dataset(
             else request.dataset.type
         )
         rows = (row for _, row in _records(source, dtype))
+    elif request.inline_records is not None:
+        canonical = "".join(
+            json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
+            for row in request.inline_records
+        )
+        source_hash = hashlib.sha256(canonical.encode()).hexdigest()
+        rows = iter(request.inline_records)
     else:
         load_dataset = _hf_load_dataset()
         assert request.hf_repo is not None

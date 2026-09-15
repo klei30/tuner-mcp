@@ -918,6 +918,24 @@
               ],
               "default": null
             },
+            "inline_records": {
+              "anyOf": [
+                {
+                  "items": {
+                    "additionalProperties": {},
+                    "type": "object"
+                  },
+                  "maxItems": 1000,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Inline synthetic or user-authored records to validate and persist without a server-local file"
+            },
             "hf_repo": {
               "anyOf": [
                 {

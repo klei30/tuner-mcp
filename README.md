@@ -205,7 +205,48 @@ automatically, JSON-encoded message strings are parsed), preference triples, or 
 `output_type`; instruction-style rows map via `user_field`/`assistant_field`
 (e.g. `instruction`→user, `cmd`→assistant); unmapped rows fail fast naming
 the record index and available fields. Gated repos need `HF_TOKEN` in the server environment. `dataset_prepare`
-accepts the same `hf_repo`/`hf_revision` pair for one-step local-or-HF staging.
+accepts the same `hf_repo`/`hf_revision` pair for one-step local-or-HF staging. It also
+accepts up to 1,000 `inline_records`, so an MCP client can persist synthetic or
+hand-authored tool-use demonstrations without creating a server-local file:
+
+```json
+{
+  "request": {
+    "inline_records": [
+      {
+        "messages": [
+          {"role": "user", "content": "Find the latest run."},
+          {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "type": "function",
+                "function": {"name": "training_list", "arguments": "{\"limit\":1}"}
+              }
+            ]
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "training_list",
+              "description": "List runs",
+              "parameters": {"type": "object", "properties": {"limit": {"type": "integer"}}}
+            }
+          }
+        ]
+      }
+    ],
+    "output_type": "conversation_jsonl",
+    "validation_records": 0
+  }
+}
+```
+
+Stored provenance contains the inline count and content hash rather than a second
+copy of the full inline payload.
 
 Preference datasets can map common Hub field names explicitly with
 `preference_prompt_field`, `chosen_field`, and `rejected_field`. The probe

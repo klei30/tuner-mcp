@@ -22,7 +22,7 @@ This catalog covers the 48 tools exposed by the current server. Runtime MCP sche
 | `dataset_search_hf` | Search public Hugging Face datasets by query, author, tags, likes, downloads, or recency; returns pinned SHAs. |
 | `dataset_probe_hf` | Inspect configs, splits, sample rows, and compatible mappings for a pinned HF revision. |
 | `dataset_fetch_hf` | Stream a pinned HF split, map it, optionally deduplicate/shuffle/split, and persist prepared dataset IDs. |
-| `dataset_prepare` | Stage and validate an allowed local dataset or pinned HF dataset as persistent prepared data. |
+| `dataset_prepare` | Stage and validate an allowed local dataset, pinned HF dataset, or bounded inline synthetic records as persistent prepared data. |
 | `dataset_validate` | Validate an allowed local/prepared dataset and report malformed record indexes. |
 | `dataset_inspect` | Validate and return a bounded sample for human quality inspection. |
 | `dataset_render_preview` | Render examples with a model/renderer or SFT/DPO plan and inspect tokens, truncation, tool prefixes, and loss masks. |

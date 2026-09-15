@@ -30,8 +30,9 @@ The live tool schema is authoritative. Inspect it before sending unfamiliar or v
 - Use `experiment_autoplan` when the user supplied an objective but has not selected a model, dataset, or method. Review its candidates and blockers; it does not train.
 - Use `training_plan` for typed SFT, DPO, supported math RL, or teacher/student distillation. It resolves defaults, checks limits, and creates an immutable plan.
 - Use `recipe_plan` for an exact allowlisted Cookbook recipe configuration. First inspect `recipe_get`; native recipe selectors and files are not interchangeable with generic prepared datasets.
-- Use the direct `train_sft`, `train_dpo`, `train_rl`, `train_distill`, or `evaluate` task tool when the request is already complete and bounded. Prefer `background=true` for work that should return a run ID promptly.
+- Use the direct `train_sft`, `train_dpo`, `train_rl`, `train_distill`, or `evaluate` task tool when the request is already complete and bounded. Set `background=true` and a stable idempotency key so the call returns a durable run ID promptly.
 - Use `training_start` or `recipe_start` for an already reviewed plan. Always provide a unique, stable idempotency key for the intended run.
+- Submit billable mutations serially. Capture and inspect the durable run ID from one submission before issuing the next; parallelize read-only discovery and inspection only.
 
 Read [references/tools.md](references/tools.md) for all 48 tools and their roles. Read [references/recipes.md](references/recipes.md) before specialized Cookbook work. Read [references/contracts.md](references/contracts.md) for payloads and strict input rules. Read [references/workflows.md](references/workflows.md) for end-to-end procedures.
 
@@ -48,7 +49,7 @@ For Hugging Face data:
 
 `max_records` bounds the source scan before transformations. A validation split is carved from that bounded set. Preserve the returned fingerprint, source revision, mapping, hashes, train count, and validation count in the final report.
 
-Use `dataset_prepare` for an allowed server-local file or a pinned Hugging Face source. Prepared IDs survive client reconnects and can be recovered through `objects_list` and `object_get`.
+Use `dataset_prepare` for an allowed server-local file, a pinned Hugging Face source, or bounded `inline_records`. Inline records are the native route for synthetic examples derived from real MCP schemas; do not create a temporary JSONL file with shell or Python. Prepared IDs survive client reconnects and can be recovered through `objects_list` and `object_get`.
 
 ## Training workflow
 
@@ -101,7 +102,9 @@ Never fabricate a model, dataset, checkpoint, metric, cost, or success state. Pr
 
 ## Runtime and recovery
 
-The standard local Codex endpoint is `http://127.0.0.1:8765/mcp`. HTTP mode requires its configured bearer token. Docker deployments use Redis/Valkey for task execution and SQLite-backed persistent Tuner records. A server restart may require the MCP client to restart or reconnect before new tools appear.
+The standard local Codex endpoint is `http://127.0.0.1:8765/mcp`. HTTP mode requires its configured bearer token. Docker deployments use Redis/Valkey for task execution and SQLite-backed persistent Tuner records. Do not stop or redeploy the Compose project while an MCP call or run submission is in flight. A server restart may require the MCP client to restart or reconnect before new tools appear.
+
+After a transport failure, reconnect first, then call `training_list(source="local")` and `objects_list` before retrying. A billable request with no returned response may be retried only with the exact same operation, request, and idempotency key. If no durable run exists, the same idempotent submission can be issued serially after the connection is healthy.
 
 Use `sessions_list`, `session_get`, and `session_trace_export` for Tinker-side session investigation. Use `objects_list` and `object_get` to recover persistent datasets and plans. Worker diagnostics deliberately omit exception text, source lines, and local values; report the safe diagnostic evidence that is available.
 

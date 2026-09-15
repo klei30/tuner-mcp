@@ -4,10 +4,11 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import JsonValue
 
 from tuner.datasets import map_hf_row, prepare_dataset
 from tuner.errors import TunerError
-from tuner.models import PrepareDatasetRequest
+from tuner.models import DatasetSpec, PrepareDatasetRequest
 
 
 def test_explicit_sharegpt_mapping_and_instruction_context():
@@ -50,6 +51,64 @@ def test_deduplication_split_reproducible_and_disjoint(workflow):
     assert not set(Path(first["path"]).read_text().splitlines()) & set(
         Path(validation["path"]).read_text().splitlines()
     )
+
+
+def test_inline_records_prepare_without_local_file(workflow):
+    control, _, _, _ = workflow
+    rows: list[dict[str, JsonValue]] = [
+        {
+            "messages": [
+                {"role": "user", "content": f"Task {index}"},
+                {"role": "assistant", "content": f"Answer {index}"},
+            ],
+            "tools": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "lookup",
+                        "description": "Look up a value",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"query": {"type": "string"}},
+                            "required": ["query"],
+                        },
+                    },
+                }
+            ],
+        }
+        for index in range(3)
+    ]
+    result = prepare_dataset(
+        PrepareDatasetRequest(
+            inline_records=rows,
+            output_type="conversation_jsonl",
+            validation_records=1,
+            shuffle_seed=7,
+        ),
+        control.settings,
+        control.store,
+    )
+
+    validation = control.store.get(result["validation_dataset_id"])
+    assert result["records"] == 2
+    assert validation["records"] == 1
+    assert result["source"]["inline"] == {
+        "records": 3,
+        "sha256": result["transform"]["source_sha256"],
+    }
+    assert "inline_records" not in result["source"]
+    assert result["transform"]["source_sha256"]
+
+
+def test_dataset_prepare_requires_exactly_one_source():
+    row: dict[str, JsonValue] = {"messages": [{"role": "assistant", "content": "A"}]}
+    with pytest.raises(ValueError, match="exactly one"):
+        PrepareDatasetRequest()
+    with pytest.raises(ValueError, match="exactly one"):
+        PrepareDatasetRequest(
+            inline_records=[row],
+            dataset=DatasetSpec(type="conversation_jsonl", path="/data/train.jsonl"),
+        )
 
 
 def _stopped_run(workflow):

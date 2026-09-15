@@ -295,6 +295,15 @@ class PrepareDatasetRequest(StrictModel):
     validation_records: int = Field(default=0, ge=0)
     input_field: str | None = Field(default=None, description="Context appended to the instruction")
     dataset: DatasetSpec | None = None
+    inline_records: list[dict[str, JsonValue]] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=1000,
+        description=(
+            "Inline synthetic or user-authored records to validate and persist without a "
+            "server-local file"
+        ),
+    )
     hf_repo: str | None = None
     hf_revision: str | None = None
     hf_config: str | None = Field(
@@ -324,8 +333,13 @@ class PrepareDatasetRequest(StrictModel):
 
     @model_validator(mode="after")
     def source(self) -> PrepareDatasetRequest:
-        if (self.dataset is None) == (self.hf_repo is None):
-            raise ValueError("Provide exactly one local dataset or Hugging Face repo")
+        sources = sum(
+            source is not None for source in (self.dataset, self.inline_records, self.hf_repo)
+        )
+        if sources != 1:
+            raise ValueError(
+                "Provide exactly one local dataset, inline record list, or Hugging Face repo"
+            )
         if self.hf_repo and (
             not self.hf_revision or re.fullmatch(r"[0-9a-fA-F]{40}", self.hf_revision) is None
         ):

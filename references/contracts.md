@@ -53,6 +53,29 @@ Preference JSONL represents one context with chosen and rejected continuations. 
 
 Use `user_field` and `assistant_field` for instruction-style rows and `input_field` for context appended to the instruction. Use the mapping returned by `dataset_probe_hf`.
 
+For synthetic examples derived from MCP schemas, pass up to 1,000 records directly
+to `dataset_prepare` instead of writing a temporary file:
+
+```json
+{
+  "request": {
+    "inline_records": [
+      {
+        "messages": [
+          {"role":"user","content":"List recent runs"},
+          {"role":"assistant","content":null,"tool_calls":[{"type":"function","function":{"name":"training_list","arguments":"{\"limit\":5}"}}]}
+        ],
+        "tools": [{"type":"function","function":{"name":"training_list","description":"List runs","parameters":{"type":"object","properties":{"limit":{"type":"integer"}}}}}]
+      }
+    ],
+    "output_type": "conversation_jsonl"
+  }
+}
+```
+
+The records are validated, bounded by the dataset byte limit, and stored with a
+content hash. The persistent source metadata omits the duplicate inline payload.
+
 For preference rows, set `output_type` to `preference_jsonl` and pass the
 probe's `preference_prompt_field`, `chosen_field`, and `rejected_field` values.
 Tuner canonicalizes them to a shared prompt plus `chosen` and `rejected`
