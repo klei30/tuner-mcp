@@ -320,6 +320,16 @@ class PrepareDatasetRequest(StrictModel):
         default=None,
         description="Row field for the assistant turn (instruction-style rows, e.g. 'cmd')",
     )
+    tools_field: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Row field containing OpenAI or raw function declarations, including JSON text",
+    )
+    tool_calls_field: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Row field containing target function calls, including raw xLAM answers",
+    )
     preference_prompt_field: str | None = Field(
         default=None,
         description="Row field for the shared preference prompt, e.g. 'instruction'",
@@ -380,6 +390,16 @@ class HFFetchRequest(StrictModel):
     assistant_field: str | None = Field(
         default=None,
         description="Row field for the assistant turn (instruction-style rows, e.g. 'cmd')",
+    )
+    tools_field: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Row field containing OpenAI or raw function declarations, including JSON text",
+    )
+    tool_calls_field: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Row field containing target function calls, including raw xLAM answers",
     )
     preference_prompt_field: str | None = Field(
         default=None,

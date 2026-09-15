@@ -73,6 +73,33 @@ def _render_tool_declarations(dataset_path: Path, output_path: Path, renderer: A
     return output_path
 
 
+class _OpenAICompatibleConversationBuilder:
+    """Apply the Cookbook's OpenAI compatibility conversion inside its file builder."""
+
+    def __init__(self, builder: Any):
+        self.builder = builder
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.builder, name)
+
+    def __call__(self) -> tuple[Any, Any | None]:
+        from tuner.rendering import cookbook_messages
+
+        train, test = self.builder()
+        for dataset in (train, test):
+            if dataset is None or dataset.map_fn is None:
+                continue
+            original = dataset.map_fn
+
+            def convert(row: dict[str, Any], mapper: Any = original) -> Any:
+                converted = dict(row)
+                converted["messages"] = cookbook_messages(converted["messages"])
+                return mapper(converted)
+
+            dataset.map_fn = convert
+        return train, test
+
+
 class TinkerAdapter:
     async def _rest_operation(self, operation: str, **kwargs: Any) -> Any:
         import tinker
@@ -395,13 +422,14 @@ class CookbookAdapter:
                 }.get(cfg.train_on, cfg.train_on)
             ),
         )
-        builder = _construct(
+        file_builder = _construct(
             FromConversationFileBuilder,
             file_path=str(dataset_path),
             common_config=common,
             test_size=cfg.test_size,
             shuffle_seed=cfg.shuffle_seed,
         )
+        builder = _OpenAICompatibleConversationBuilder(file_builder)
         evaluators = []
         if request.evaluation.enabled:
             evaluators.append(

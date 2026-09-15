@@ -737,6 +737,32 @@
               "default": null,
               "description": "Row field for the assistant turn (instruction-style rows, e.g. 'cmd')"
             },
+            "tools_field": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field containing OpenAI or raw function declarations, including JSON text"
+            },
+            "tool_calls_field": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field containing target function calls, including raw xLAM answers"
+            },
             "preference_prompt_field": {
               "anyOf": [
                 {
@@ -1001,6 +1027,32 @@
               ],
               "default": null,
               "description": "Row field for the assistant turn (instruction-style rows, e.g. 'cmd')"
+            },
+            "tools_field": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field containing OpenAI or raw function declarations, including JSON text"
+            },
+            "tool_calls_field": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Row field containing target function calls, including raw xLAM answers"
             },
             "preference_prompt_field": {
               "anyOf": [

@@ -152,6 +152,48 @@ def test_custom_evaluation_grading():
     assert not score_response(expected, {"tool_calls": []}, "tool_calls")
 
 
+def test_tool_call_evaluation_targets_last_call_in_trajectory(tmp_path):
+    from tuner.custom_evaluation import evaluation_rows
+    from tuner.models import EvaluateRequest, SamplingTarget
+    from tuner.settings import Settings
+
+    path = tmp_path / "trajectory.jsonl"
+    path.write_text(
+        json.dumps(
+            {
+                "messages": [
+                    {"role": "user", "content": "Inspect the run"},
+                    {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": "call_1",
+                                "type": "function",
+                                "function": {"name": "training_get", "arguments": "{}"},
+                            }
+                        ],
+                    },
+                    {"role": "tool", "content": "completed", "tool_call_id": "call_1"},
+                    {"role": "assistant", "content": "The run completed."},
+                ]
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    request = EvaluateRequest(
+        target=SamplingTarget(model="example"),
+        dataset=DatasetSpec(type="conversation_jsonl", path=str(path)),
+        scoring="tool_calls",
+    )
+    rows = evaluation_rows(
+        request, Settings(state_dir=tmp_path / "state", allowed_roots=(tmp_path,))
+    )
+    assert len(rows[0]["messages"]) == 2
+    assert rows[0]["messages"][-1]["tool_calls"][0]["function"]["name"] == "training_get"
+
+
 def test_evaluation_snapshot_idempotency_and_source_validation(workflow):
     from tuner.models import EvaluateRequest, SamplingTarget
 

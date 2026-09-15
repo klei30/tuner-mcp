@@ -6,7 +6,7 @@ from itertools import islice
 
 from tuner.datasets import _records, resolve_dataset_path
 from tuner.errors import TunerError
-from tuner.rendering import with_tool_prefix
+from tuner.rendering import renderer_row
 from tuner.store import fingerprint
 
 
@@ -16,6 +16,8 @@ def score_response(expected, actual, policy: str) -> bool:
         def calls(message):
             result = []
             for call in message.get("tool_calls") or []:
+                if hasattr(call, "model_dump"):
+                    call = call.model_dump(mode="json")
                 function = call["function"]
                 result.append((function["name"], json.loads(function["arguments"])))
             return result
@@ -42,23 +44,40 @@ def evaluation_rows(request, settings):
     rows = list(
         islice((row for _, row in _records(path, "conversation_jsonl")), request.max_examples)
     )
+    selected = []
     for row in rows:
         messages = row.get("messages", [])
-        if len(messages) < 2 or messages[-1].get("role") != "assistant":
+        if len(messages) < 2:
             raise TunerError(
                 "DATASET_ERROR", "Evaluation needs a prompt and final assistant target."
             )
-        target = messages[-1]
         if request.scoring == "tool_calls":
-            if not target.get("tool_calls"):
+            target_index = next(
+                (
+                    index
+                    for index in range(len(messages) - 1, 0, -1)
+                    if messages[index].get("role") == "assistant"
+                    and messages[index].get("tool_calls")
+                ),
+                None,
+            )
+            if target_index is None:
                 raise TunerError(
                     "DATASET_ERROR", "tool_calls scoring requires expected tool calls."
                 )
-        elif not isinstance(target.get("content"), str):
+            selected.append({**row, "messages": messages[: target_index + 1]})
+            continue
+        target = messages[-1]
+        if target.get("role") != "assistant":
+            raise TunerError(
+                "DATASET_ERROR", "Evaluation needs a prompt and final assistant target."
+            )
+        if not isinstance(target.get("content"), str):
             raise TunerError("DATASET_ERROR", "Text scoring requires a text assistant target.")
+        selected.append(row)
     if not rows:
         raise TunerError("DATASET_ERROR", "Evaluation dataset is empty.")
-    return rows
+    return selected
 
 
 def build_benchmark(request, settings):
@@ -97,7 +116,7 @@ def build_benchmark(request, settings):
         def make_envs(self, renderer, config):
             examples = []
             for row in rows:
-                row = with_tool_prefix(row, renderer)
+                row = renderer_row(row, renderer)
                 if config.system_prompt:
                     row["messages"] = [
                         {"role": "system", "content": config.system_prompt},

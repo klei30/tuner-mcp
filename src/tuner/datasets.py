@@ -241,6 +241,138 @@ def file_hash(path: Path) -> str:
 
 
 _SHAREGPT_ROLES = {"human": "user", "gpt": "assistant", "system": "system"}
+_JSON_SCHEMA_TYPES = {
+    "str": "string",
+    "string": "string",
+    "int": "integer",
+    "integer": "integer",
+    "float": "number",
+    "number": "number",
+    "bool": "boolean",
+    "boolean": "boolean",
+    "dict": "object",
+    "object": "object",
+    "list": "array",
+    "array": "array",
+}
+
+
+def _json_array(value: Any) -> list[Any] | None:
+    if isinstance(value, list):
+        return value
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, list) else None
+
+
+def _schema_type(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    lowered = value.strip().lower()
+    base = lowered.split(",", 1)[0].strip().rstrip("?")
+    if base.startswith(("list[", "typing.list[", "tuple[", "set[")):
+        return "array"
+    if base.startswith(("dict[", "typing.dict[")):
+        return "object"
+    return _JSON_SCHEMA_TYPES.get(base, value)
+
+
+def _function_parameters(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {"type": "object", "properties": {}}
+    schema: dict[str, Any]
+    properties: dict[Any, Any]
+    if value.get("type") == "object":
+        schema = dict(value)
+        raw_properties = value.get("properties")
+        properties = raw_properties if isinstance(raw_properties, dict) else {}
+    else:
+        schema = {"type": "object"}
+        properties = value
+    normalized: dict[str, Any] = {}
+    raw_required = schema.get("required")
+    required = list(raw_required) if isinstance(raw_required, list) else []
+    for name, raw in properties.items():
+        prop = dict(raw) if isinstance(raw, dict) else {"type": raw}
+        if prop.pop("required", False) and name not in required:
+            required.append(name)
+        if "type" in prop:
+            prop["type"] = _schema_type(prop["type"])
+        normalized[str(name)] = prop
+    schema["properties"] = normalized
+    if required:
+        schema["required"] = required
+    return schema
+
+
+def _openai_tools(value: Any, *, index: int, field: str) -> list[dict[str, Any]]:
+    tools = _json_array(value)
+    if tools is None:
+        raise TunerError("DATASET_ERROR", f"HF record {index} field '{field}' is not a tool list.")
+    result = []
+    for position, tool in enumerate(tools):
+        if not isinstance(tool, dict):
+            raise TunerError(
+                "DATASET_ERROR", f"HF record {index} tool {position} must be an object."
+            )
+        function = tool.get("function") if isinstance(tool.get("function"), dict) else tool
+        if not isinstance(function, dict) or not isinstance(function.get("name"), str):
+            raise TunerError("DATASET_ERROR", f"HF record {index} tool {position} needs a name.")
+        result.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": function["name"],
+                    "description": function.get("description", ""),
+                    "parameters": _function_parameters(function.get("parameters")),
+                },
+            }
+        )
+    return result
+
+
+def _openai_tool_calls(value: Any, *, index: int, field: str) -> list[dict[str, Any]]:
+    calls = _json_array(value)
+    if calls is None:
+        raise TunerError(
+            "DATASET_ERROR", f"HF record {index} field '{field}' is not a tool-call list."
+        )
+    result = []
+    for position, call in enumerate(calls):
+        if not isinstance(call, dict):
+            raise TunerError(
+                "DATASET_ERROR", f"HF record {index} tool call {position} must be an object."
+            )
+        function = call.get("function") if isinstance(call.get("function"), dict) else call
+        if not isinstance(function, dict) or not isinstance(function.get("name"), str):
+            raise TunerError(
+                "DATASET_ERROR", f"HF record {index} tool call {position} needs a name."
+            )
+        arguments = function.get("arguments", {})
+        if isinstance(arguments, str):
+            try:
+                json.loads(arguments)
+            except json.JSONDecodeError:
+                raise TunerError(
+                    "DATASET_ERROR",
+                    f"HF record {index} tool call {position} has invalid JSON arguments.",
+                ) from None
+        else:
+            arguments = json.dumps(arguments, ensure_ascii=False, sort_keys=True)
+        result.append(
+            {
+                "id": call.get("id") or f"call_{position + 1}",
+                "type": "function",
+                "function": {"name": function["name"], "arguments": arguments},
+            }
+        )
+    if not result:
+        raise TunerError("DATASET_ERROR", f"HF record {index} has no target tool calls.")
+    return result
 
 
 def _sharegpt_to_messages(value: Any) -> list[dict[str, str]] | None:
@@ -279,6 +411,8 @@ def map_hf_row(
     index: int,
     user_field: str | None = None,
     assistant_field: str | None = None,
+    tools_field: str | None = None,
+    tool_calls_field: str | None = None,
     input_field: str | None = None,
     preference_prompt_field: str | None = None,
     chosen_field: str = "chosen",
@@ -291,13 +425,12 @@ def map_hf_row(
     if output_type == "conversation_jsonl":
         messages = row.get(message_field, row.get("messages"))
         if isinstance(messages, str):
-            try:
-                messages = json.loads(messages)
-            except json.JSONDecodeError:
+            messages = _json_array(messages)
+            if messages is None:
                 raise TunerError(
                     "DATASET_ERROR",
                     f"HF record {index} field '{message_field}' is text, not a message list.",
-                ) from None
+                )
         if (
             isinstance(messages, list)
             and messages
@@ -305,8 +438,22 @@ def map_hf_row(
             and "from" in messages[0]
         ):
             messages = _sharegpt_to_messages(messages)
-        if messages is None and isinstance(row.get("conversations"), list):
-            messages = _sharegpt_to_messages(row["conversations"])
+        conversations = _json_array(row.get("conversations"))
+        if messages is None and conversations is not None:
+            messages = _sharegpt_to_messages(conversations)
+        if messages is None and user_field and tool_calls_field:
+            user_text = row.get(user_field)
+            if isinstance(user_text, str) and user_text:
+                messages = [
+                    {"role": "user", "content": user_text},
+                    {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": _openai_tool_calls(
+                            row.get(tool_calls_field), index=index, field=tool_calls_field
+                        ),
+                    },
+                ]
         if messages is None and user_field and assistant_field:
             user_text, assistant_text = row.get(user_field), row.get(assistant_field)
             if input_field:
@@ -337,11 +484,21 @@ def map_hf_row(
             )
         # Preserve native tool declarations and dataset provenance. Cookbook
         # renderers use the top-level tool list to build model-specific prefixes.
-        return {
-            key: row[key]
-            for key in ("messages", "tools", "metadata")
-            if key != "messages" and key in row
-        } | {"messages": messages}
+        result = {"messages": messages}
+        selected_tools_field = tools_field or (
+            "tools"
+            if row.get("tools") is not None
+            else "tools_json"
+            if row.get("tools_json") is not None
+            else None
+        )
+        if selected_tools_field:
+            result["tools"] = _openai_tools(
+                row.get(selected_tools_field), index=index, field=selected_tools_field
+            )
+        if "metadata" in row:
+            result["metadata"] = row["metadata"]
+        return result
     if output_type == "preference_jsonl":
         prompt_field = preference_prompt_field or (
             "prompt" if "prompt" in row else "messages" if "messages" in row else None
@@ -454,18 +611,46 @@ def _hf_load_dataset():
 
 def _mapping_options(row: dict[str, Any]) -> list[dict[str, Any]]:
     options: list[dict[str, Any]] = []
-    if isinstance(row.get("messages"), list):
-        options.append({"output_type": "conversation_jsonl", "message_field": "messages"})
-    elif isinstance(row.get("conversations"), list):
-        options.append({"output_type": "conversation_jsonl", "message_field": "conversations"})
+    tools_field = next(
+        (name for name in ("tools", "tools_json") if _json_array(row.get(name)) is not None), None
+    )
+    if _json_array(row.get("messages")) is not None:
+        options.append(
+            {
+                "output_type": "conversation_jsonl",
+                "message_field": "messages",
+                **({"tools_field": tools_field} if tools_field else {}),
+            }
+        )
+    elif _json_array(row.get("conversations")) is not None:
+        options.append(
+            {
+                "output_type": "conversation_jsonl",
+                "message_field": "conversations",
+                **({"tools_field": tools_field} if tools_field else {}),
+            }
+        )
     user_fields = ("instruction", "prompt", "question", "query", "input")
     assistant_fields = ("cmd", "command", "response", "answer", "output", "completion")
     if not any(item["output_type"] == "conversation_jsonl" for item in options):
         user = next((name for name in user_fields if isinstance(row.get(name), str)), None)
+        tool_calls = next(
+            (name for name in ("answers", "tool_calls") if _json_array(row.get(name)) is not None),
+            None,
+        )
+        if user and tool_calls and tools_field:
+            options.append(
+                {
+                    "output_type": "conversation_jsonl",
+                    "user_field": user,
+                    "tool_calls_field": tool_calls,
+                    "tools_field": tools_field,
+                }
+            )
         assistant = next(
             (name for name in assistant_fields if isinstance(row.get(name), str)), None
         )
-        if user and assistant:
+        if user and assistant and not tool_calls:
             options.append(
                 {
                     "output_type": "conversation_jsonl",
@@ -502,6 +687,27 @@ def _mapping_options(row: dict[str, Any]) -> list[dict[str, Any]]:
     return options
 
 
+def _hf_probe_error(exc: Exception, operation: str) -> TunerError:
+    name = type(exc).__name__
+    if name in {
+        "GatedRepoError",
+        "RepositoryNotFoundError",
+        "DatasetNotFoundError",
+        "AuthenticationError",
+    }:
+        return TunerError(
+            "DATASET_ERROR",
+            f"Hugging Face {operation} requires repository access and a configured HF_TOKEN "
+            f"({name}).",
+            retryable=False,
+        )
+    return TunerError(
+        "DATASET_ERROR",
+        f"Hugging Face {operation} failed ({name}).",
+        retryable=True,
+    )
+
+
 def probe_hf_dataset(request: HFProbeRequest) -> dict[str, Any]:
     """Inspect pinned HF configs and sample schema without staging data."""
     module = _hf_datasets_module()
@@ -516,11 +722,7 @@ def probe_hf_dataset(request: HFProbeRequest) -> dict[str, Any]:
                 )
             )
         except Exception as exc:
-            raise TunerError(
-                "DATASET_ERROR",
-                f"Hugging Face config discovery failed ({type(exc).__name__}).",
-                retryable=True,
-            ) from None
+            raise _hf_probe_error(exc, "config discovery") from None
     if request.hf_config is None and len(config_names) > 1:
         return {
             "hf_repo": request.hf_repo,
@@ -553,11 +755,7 @@ def probe_hf_dataset(request: HFProbeRequest) -> dict[str, Any]:
             if len(samples) >= request.sample_records:
                 break
     except Exception as exc:
-        raise TunerError(
-            "DATASET_ERROR",
-            f"Hugging Face schema probe failed ({type(exc).__name__}).",
-            retryable=True,
-        ) from None
+        raise _hf_probe_error(exc, "schema probe") from None
     common = [option_values[key] for key in sorted(option_keys or set())]
     return {
         "hf_repo": request.hf_repo,
@@ -743,6 +941,8 @@ def prepare_dataset(
                 index=index,
                 user_field=request.user_field,
                 assistant_field=request.assistant_field,
+                tools_field=request.tools_field,
+                tool_calls_field=request.tool_calls_field,
                 input_field=request.input_field,
                 preference_prompt_field=request.preference_prompt_field,
                 chosen_field=request.chosen_field,

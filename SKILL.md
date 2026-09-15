@@ -43,11 +43,13 @@ For Hugging Face data:
 1. Call `dataset_search_hf` with focused terms and a useful sort order.
 2. Select a result using task fit, schema, license, safety status, language/domain quality, likes/downloads, and gated status. Popularity alone is not a quality decision.
 3. Pass the returned repository and full 40-character commit SHA to `dataset_probe_hf`. Inspect configs, splits, sampled rows, and suggested mapping.
-4. Call `dataset_fetch_hf` with that pinned SHA, exact mapping, record bound, deterministic shuffle seed when useful, deduplication choice, and validation count.
+4. Call `dataset_fetch_hf` with that pinned SHA and the exact mapping returned by the probe, including `tools_field` and `tool_calls_field` for structured tool datasets. Add the record bound, deterministic shuffle seed when useful, deduplication choice, and validation count.
 5. Use the returned prepared dataset IDs with `dataset_validate` and `dataset_inspect`. Inspect actual samples for contamination, OCR damage, empty answers, language mismatch, unsafe content, and task mismatch.
 6. Call `dataset_render_preview` for the selected model/renderer or SFT/DPO plan. Resolve truncation, invalid loss masks, and blockers before training.
 
 `max_records` bounds the source scan before transformations. A validation split is carved from that bounded set. Preserve the returned fingerprint, source revision, mapping, hashes, train count, and validation count in the final report.
+
+When the user requires Hugging Face data, keep the training corpus on that pinned Hub source. Missing access, a gated repository, or an incompatible schema is a blocker to report and resolve; do not silently replace the requested source with `inline_records`. Create synthetic examples only when the user explicitly requests or accepts them, and report them as a separate source.
 
 Use `dataset_prepare` for an allowed server-local file, a pinned Hugging Face source, or bounded `inline_records`. Inline records are the native route for synthetic examples derived from real MCP schemas; do not create a temporary JSONL file with shell or Python. Prepared IDs survive client reconnects and can be recovered through `objects_list` and `object_get`.
 

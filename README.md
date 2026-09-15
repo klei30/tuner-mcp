@@ -198,13 +198,37 @@ validated `dataset_id` usable by every training tool:
 }
 ```
 
+Raw xLAM datasets are also supported without generating replacement records. Use
+the mapping returned by `dataset_probe_hf`; for the original Salesforce dataset
+the request has this shape:
+
+```json
+{
+  "request": {
+    "hf_repo": "Salesforce/xlam-function-calling-60k",
+    "hf_revision": "<40-character commit SHA from dataset_search_hf>",
+    "hf_split": "train",
+    "output_type": "conversation_jsonl",
+    "user_field": "query",
+    "tool_calls_field": "answers",
+    "tools_field": "tools",
+    "max_records": 1000,
+    "validation_records": 100,
+    "shuffle_seed": 30
+  }
+}
+```
+
 Rules: the revision must be the full 40-character commit SHA (no branch names,
 so a re-resolve can never silently change the data); `trust_remote_code` is
 always off; rows are mapped to `messages` (ShareGPT `conversations` convert
 automatically, JSON-encoded message strings are parsed), preference triples, or `prompt` text depending on
 `output_type`; instruction-style rows map via `user_field`/`assistant_field`
 (e.g. `instruction`→user, `cmd`→assistant); unmapped rows fail fast naming
-the record index and available fields. Gated repos need `HF_TOKEN` in the server environment. `dataset_prepare`
+the record index and available fields. The original Salesforce xLAM repository is
+gated: accept its Hub terms and configure `HF_TOKEN` in the server environment.
+When Hub data is requested, Tuner reports access or schema blockers instead of
+silently replacing it with synthetic inline records. `dataset_prepare`
 accepts the same `hf_repo`/`hf_revision` pair for one-step local-or-HF staging. It also
 accepts up to 1,000 `inline_records`, so an MCP client can persist synthetic or
 hand-authored tool-use demonstrations without creating a server-local file:

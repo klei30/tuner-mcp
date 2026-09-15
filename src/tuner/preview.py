@@ -6,7 +6,7 @@ from tuner.adapters import jsonable
 from tuner.datasets import preference_comparison, validate_dataset
 from tuner.errors import TunerError
 from tuner.models import DatasetSpec
-from tuner.rendering import train_on_value, with_tool_prefix
+from tuner.rendering import renderer_row, train_on_value
 from tuner.settings import Settings
 
 
@@ -91,7 +91,7 @@ def render_preview(
 
     policy = renderers.TrainOnWhat(train_on_value(train_on))
     for row in report["samples"]:
-        row = with_tool_prefix(row, renderer)
+        row = renderer_row(row, renderer)
         full = conversation_to_datum(row["messages"], renderer, None, policy)
         datum = conversation_to_datum(row["messages"], renderer, length, policy)
         raw_weights = datum.loss_fn_inputs["weights"]

@@ -248,6 +248,86 @@ def test_map_json_string_messages() -> None:
         )
 
 
+def test_map_stringified_openai_messages_and_tools() -> None:
+    messages = [
+        {"role": "user", "content": "Find the weather"},
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_weather",
+                    "type": "function",
+                    "function": {"name": "weather", "arguments": '{"city":"Tirana"}'},
+                }
+            ],
+        },
+    ]
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "weather",
+                "description": "Get weather",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"city": {"type": "string"}},
+                    "required": ["city"],
+                },
+            },
+        }
+    ]
+    mapped = map_hf_row(
+        {"messages": json.dumps(messages), "tools_json": json.dumps(tools)},
+        output_type="conversation_jsonl",
+        message_field="messages",
+        tools_field="tools_json",
+        index=1,
+    )
+    assert mapped == {"messages": messages, "tools": tools}
+
+
+def test_map_raw_xlam_calls_and_tool_schemas() -> None:
+    mapped = map_hf_row(
+        {
+            "query": "Find two forecasts",
+            "answers": json.dumps(
+                [
+                    {"name": "weather", "arguments": {"city": "Tirana"}},
+                    {"name": "weather", "arguments": {"city": "Pristina"}},
+                ]
+            ),
+            "tools": json.dumps(
+                [
+                    {
+                        "name": "weather",
+                        "description": "Get weather",
+                        "parameters": {
+                            "city": {"type": "str", "required": True},
+                            "days": {"type": "int", "default": 1},
+                        },
+                    }
+                ]
+            ),
+        },
+        output_type="conversation_jsonl",
+        message_field="messages",
+        user_field="query",
+        tool_calls_field="answers",
+        tools_field="tools",
+        index=1,
+    )
+    assert mapped["messages"][1]["content"] is None
+    assert [call["function"]["name"] for call in mapped["messages"][1]["tool_calls"]] == [
+        "weather",
+        "weather",
+    ]
+    parameters = mapped["tools"][0]["function"]["parameters"]
+    assert parameters["properties"]["city"]["type"] == "string"
+    assert parameters["properties"]["days"]["type"] == "integer"
+    assert parameters["required"] == ["city"]
+
+
 def test_map_instruction_style_fields() -> None:
     row = {"instruction": "Create backup", "cmd": "cp -r a b", "output": "done"}
     mapped = map_hf_row(
@@ -384,6 +464,44 @@ def test_probe_reports_required_config_and_compatible_mapping(monkeypatch) -> No
     ]
 
 
+def test_probe_detects_stringified_openai_and_raw_xlam_rows(monkeypatch) -> None:
+    module = types.ModuleType("datasets")
+    module.get_dataset_config_names = lambda *args, **kwargs: ["default"]  # type: ignore[attr-defined]
+    rows = [
+        {
+            "messages": '[{"role":"user","content":"Q"},{"role":"assistant","content":"A"}]',
+            "tools_json": (
+                '[{"type":"function","function":{"name":"f","parameters":{"type":"object"}}}]'
+            ),
+        }
+    ]
+    module.load_dataset = lambda *args, **kwargs: iter(rows)  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "datasets", module)
+    result = probe_hf_dataset(HFProbeRequest(hf_repo="org/openai", hf_revision=REVISION))
+    assert result["mapping_options"] == [
+        {
+            "output_type": "conversation_jsonl",
+            "message_field": "messages",
+            "tools_field": "tools_json",
+        }
+    ]
+
+    rows[:] = [
+        {
+            "query": "Q",
+            "answers": '[{"name":"f","arguments":{}}]',
+            "tools": '[{"name":"f","parameters":{}}]',
+        }
+    ]
+    result = probe_hf_dataset(HFProbeRequest(hf_repo="org/xlam", hf_revision=REVISION))
+    assert {
+        "output_type": "conversation_jsonl",
+        "user_field": "query",
+        "tool_calls_field": "answers",
+        "tools_field": "tools",
+    } in result["mapping_options"]
+
+
 def test_probe_suggests_preference_field_mapping(monkeypatch) -> None:
     module = types.ModuleType("datasets")
     module.get_dataset_config_names = lambda *args, **kwargs: ["default"]  # type: ignore[attr-defined]
@@ -427,6 +545,26 @@ def test_probe_skips_config_discovery_when_config_is_explicit(monkeypatch) -> No
         "chosen_field": "chosen",
         "rejected_field": "rejected",
     } in result["mapping_options"]
+
+
+def test_probe_reports_gated_dataset_access_as_non_retryable(monkeypatch) -> None:
+    class GatedRepoError(Exception):
+        pass
+
+    module = types.ModuleType("datasets")
+    module.get_dataset_config_names = lambda *args, **kwargs: ["default"]  # type: ignore[attr-defined]
+
+    def gated(*args, **kwargs):
+        raise GatedRepoError("secret upstream details")
+
+    module.load_dataset = gated  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "datasets", module)
+    with pytest.raises(TunerError) as exc:
+        probe_hf_dataset(HFProbeRequest(hf_repo="org/gated", hf_revision=REVISION))
+    assert exc.value.code == "DATASET_ERROR"
+    assert exc.value.retryable is False
+    assert "HF_TOKEN" in exc.value.message
+    assert "secret upstream details" not in exc.value.message
 
 
 def test_search_rejects_bad_input() -> None:

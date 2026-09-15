@@ -51,7 +51,9 @@ Preference JSONL represents one context with chosen and rejected continuations. 
 }
 ```
 
-Use `user_field` and `assistant_field` for instruction-style rows and `input_field` for context appended to the instruction. Use the mapping returned by `dataset_probe_hf`.
+Use `user_field` and `assistant_field` for instruction-style rows and `input_field` for context appended to the instruction. Structured tool datasets may also return `tools_field` and `tool_calls_field`; pass every returned selector unchanged to `dataset_fetch_hf`. Tuner converts JSON-encoded OpenAI conversations and raw xLAM `query`/`answers`/`tools` rows to canonical conversations while retaining the pinned Hub source in provenance.
+
+When Hugging Face data is required, do not replace an inaccessible or incompatible Hub dataset with `inline_records`. Report the access or schema blocker. Synthetic records are a separate source and require an explicit request or acceptance.
 
 For synthetic examples derived from MCP schemas, pass up to 1,000 records directly
 to `dataset_prepare` instead of writing a temporary file:

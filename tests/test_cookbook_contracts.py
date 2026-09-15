@@ -161,6 +161,92 @@ def test_preview_uses_real_tensor_weights_and_truncation(tmp_path, monkeypatch):
     assert all_tokens["valid"]
 
 
+def test_qwen35_preview_accepts_openai_tool_call_messages(tmp_path, monkeypatch):
+    from tinker_cookbook import tokenizer_utils
+
+    from tuner.models import DatasetSpec
+    from tuner.preview import render_preview
+
+    monkeypatch.setattr(tokenizer_utils, "get_tokenizer", lambda _: Tokenizer())
+    path = tmp_path / "tools.jsonl"
+    path.write_text(json.dumps(_tool_call_row()) + "\n", encoding="utf-8")
+    result = render_preview(
+        DatasetSpec(type="conversation_jsonl", path=str(path)),
+        "Qwen/Qwen3.5-4B",
+        "qwen3_5_disable_thinking",
+        Settings(state_dir=tmp_path / "state", allowed_roots=(tmp_path,)),
+        max_length=4096,
+        train_on="last_assistant",
+    )
+    assert result["valid"]
+    assert result["examples"][0]["loss_token_count"] > 0
+
+
+def _tool_call_row():
+    return {
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "training_list",
+                    "description": "List runs",
+                    "parameters": {"type": "object", "properties": {}},
+                },
+            }
+        ],
+        "messages": [
+            {"role": "user", "content": "List runs"},
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "training_list", "arguments": "{}"},
+                    }
+                ],
+            },
+        ],
+    }
+
+
+async def test_sft_builder_converts_openai_tool_calls_before_cookbook_rendering(
+    tmp_path, monkeypatch
+):
+    from tinker_cookbook import tokenizer_utils
+    from tinker_cookbook.supervised import train
+
+    monkeypatch.setattr(tokenizer_utils, "get_tokenizer", lambda _: Tokenizer())
+    seen = []
+
+    async def inspect(config):
+        dataset, _ = config.dataset_builder()
+        seen.extend(dataset.get_batch(0))
+
+    monkeypatch.setattr(train, "main", inspect)
+    path = tmp_path / "tools.jsonl"
+    path.write_text(json.dumps(_tool_call_row()) + "\n", encoding="utf-8")
+    request = TrainSFTRequest.model_validate(
+        {
+            "model": "Qwen/Qwen3.5-4B",
+            "dataset": {"type": "conversation_jsonl", "path": str(path)},
+            "training": {
+                "renderer": "qwen3_5_disable_thinking",
+                "batch_size": 1,
+                "max_steps": 1,
+                "max_length": 4096,
+                "train_on": "last_assistant",
+            },
+        }
+    )
+    await CookbookAdapter(Settings(state_dir=tmp_path / "state")).train_sft(
+        request, "run_" + "b" * 32, path
+    )
+    assert len(seen) == 1
+    assert seen[0].model_input.length > 0
+
+
 def test_preview_renders_both_dpo_completions(tmp_path, monkeypatch):
     from tinker_cookbook import tokenizer_utils
 
