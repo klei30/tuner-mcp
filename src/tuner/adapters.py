@@ -37,6 +37,20 @@ def jsonable(value: Any) -> Any:
     return value
 
 
+def truncation_rates(results: dict[str, Any]) -> dict[str, float | None]:
+    """Per-benchmark share of truncated examples (``None`` when unknown).
+
+    Pure helper so truncation visibility is unit-testable without Tinker.
+    """
+    rates: dict[str, float | None] = {}
+    for name, payload in results.items():
+        if isinstance(payload, dict):
+            total = payload.get("num_examples") or 0
+            truncated = payload.get("num_truncated") or 0
+            rates[name] = (truncated / total) if total else None
+    return rates
+
+
 async def _close_service(service: Any, status: Literal["success", "errored"]) -> None:
     if service is None:
         return
@@ -500,6 +514,21 @@ class CookbookAdapter:
             renderer_name = request.renderer or model_info.get_recommended_renderer_name(model)
             renderer = renderers.get_renderer(renderer_name, sampling_client.get_tokenizer())
             save_dir = self.settings.state_dir / "evaluations" / run_id
+            judge_client = None
+            judge_renderer = None
+            judge_renderer_name = None
+            if request.scoring == "rubric":
+                assert request.judge_model is not None
+                judge_client = await service.create_sampling_client_async(
+                    base_model=request.judge_model
+                )
+                judge_renderer_name = (
+                    request.judge_renderer
+                    or model_info.get_recommended_renderer_name(request.judge_model)
+                )
+                judge_renderer = renderers.get_renderer(
+                    judge_renderer_name, judge_client.get_tokenizer()
+                )
             config = BenchmarkConfig(
                 max_examples=request.max_examples,
                 max_tokens=request.max_tokens,
@@ -508,6 +537,8 @@ class CookbookAdapter:
                 save_dir=str(save_dir),
                 num_samples=request.num_samples,
                 system_prompt=request.system_prompt,
+                judge_sampling_client=judge_client,
+                judge_renderer=judge_renderer,
             )
             from dataclasses import replace
 
@@ -538,9 +569,15 @@ class CookbookAdapter:
                 "target": request.target.model_dump(),
                 "model": model,
                 "renderer": renderer_name,
+                "judge": (
+                    {"model": request.judge_model, "renderer": judge_renderer_name}
+                    if request.scoring == "rubric"
+                    else None
+                ),
                 "benchmark": names[0],
                 "result": results[names[0]],
                 "benchmarks": results,
+                "truncation_rates": truncation_rates(results),
                 "evaluation_fingerprint": fingerprint(
                     {
                         "benchmarks": names,

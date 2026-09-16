@@ -193,7 +193,10 @@ validated `dataset_id` usable by every training tool:
     "hf_revision": "<40-character commit SHA>",
     "hf_split": "train",
     "output_type": "conversation_jsonl",
-    "max_records": 1000
+    "max_records": 1000,
+    "selection_strategy": "reservoir",
+    "scan_records": 10000,
+    "shuffle_seed": 30
   }
 }
 ```
@@ -229,9 +232,17 @@ the record index and available fields. The original Salesforce xLAM repository i
 gated: accept its Hub terms and configure `HF_TOKEN` in the server environment.
 When Hub data is requested, Tuner reports access or schema blockers instead of
 silently replacing it with synthetic inline records. `dataset_prepare`
-accepts the same `hf_repo`/`hf_revision` pair for one-step local-or-HF staging. It also
-accepts up to 1,000 `inline_records`, so an MCP client can persist synthetic or
-hand-authored tool-use demonstrations without creating a server-local file:
+accepts the same `hf_repo`/`hf_revision` pair for one-step local-or-HF staging.
+
+Use `selection_strategy: "reservoir"` with a fixed `shuffle_seed` to select a
+deterministic representative sample from `scan_records`; the default `head`
+strategy reads only `max_records`. Prepared manifests report prompt diversity
+without discarding Albanian or other non-Latin scripts, plus distributions for
+available intent, category, domain, and language metadata.
+
+`dataset_prepare` also accepts up to 1,000 `inline_records`, so an MCP client can
+persist synthetic or hand-authored tool-use demonstrations without creating a
+server-local file:
 
 ```json
 {
@@ -342,9 +353,20 @@ pass `artifact_path` and `cursor` to read bounded chunks. `TUNER_MAX_ARTIFACT_BY
 checks `TUNER_MAX_BATCH_SIZE`, `TUNER_MAX_INPUT_TOKENS` and
 `TUNER_MAX_CONCURRENT_RUNS`.
 
+Typed plans report method-specific natural steps after holdouts, whether each
+important hyperparameter was explicit or resolved from Cookbook defaults, the
+Cookbook learning-rate recommendation, and dataset concentration warnings.
+Distillation currently accepts exactly one epoch because its typed adapters make
+one dataset pass.
+
 Capabilities distinguish credential presence from verified connectivity.
 `live_available` is unknown (`null`) until a live capability check succeeds.
 Evaluation is marked as mutating because it creates run records and artifacts.
+Custom evaluation supports exact, normalized exact, structured tool-call, and
+domain-rubric scoring. Rubric scoring requires a separate Tinker judge model and
+stores bounded judge evidence. `compare_runs` returns `inconclusive` instead of a
+winner for truncated, incompatible, undersized, below-threshold, or statistically
+weak results.
 `train_sft/dpo/rl/distill` and `evaluate` accept `background=true` to submit
 through Docket and return a `run_id` promptly; native task clients get progress
 the same way. `checkpoint_export` queues work by default and promptly returns an

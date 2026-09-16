@@ -304,9 +304,7 @@ def create_server(
                 "train_dpo",
                 "train_rl",
                 "train_distill",
-                "recipe_start",
                 "evaluate",
-                "checkpoint_export",
             ],
             "background_submission": "training_start, recipe_start, or background=true",
             "dataset_types": [
@@ -619,15 +617,24 @@ def create_server(
         candidate_run_id: str,
         metric: str | None = None,
         direction: Literal["minimize", "maximize"] | None = None,
+        minimum_delta: float = 0.0,
+        minimum_examples: int = 30,
     ) -> dict[str, Any]:
-        """Compare compatible evaluations using an optional explicit metric policy."""
+        """Compare evaluations; weak, small, or truncated evidence is inconclusive."""
         try:
             try:
                 baseline = store.get(baseline_run_id)
                 candidate = store.get(candidate_run_id)
             except KeyError:
                 raise TunerError("RUN_NOT_FOUND", "Local Tuner run was not found.") from None
-            return compare_records(baseline, candidate, metric, direction)
+            return compare_records(
+                baseline,
+                candidate,
+                metric,
+                direction,
+                minimum_delta,
+                minimum_examples,
+            )
         except Exception as exc:
             raise _tool_error(exc) from None
 

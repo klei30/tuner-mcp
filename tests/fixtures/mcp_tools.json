@@ -271,6 +271,14 @@
             }
           ],
           "default": null
+        },
+        "minimum_delta": {
+          "default": 0.0,
+          "type": "number"
+        },
+        "minimum_examples": {
+          "default": 30,
+          "type": "integer"
         }
       },
       "required": [
@@ -790,6 +798,29 @@
               "maximum": 1000000,
               "minimum": 1,
               "type": "integer"
+            },
+            "selection_strategy": {
+              "default": "head",
+              "description": "Select the first valid rows, or a deterministic reservoir from scan_records.",
+              "enum": [
+                "head",
+                "reservoir"
+              ],
+              "type": "string"
+            },
+            "scan_records": {
+              "anyOf": [
+                {
+                  "maximum": 1000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Source rows to inspect for reservoir selection; defaults to max_records."
             }
           },
           "required": [
@@ -1090,6 +1121,29 @@
               "maximum": 1000000,
               "minimum": 1,
               "type": "integer"
+            },
+            "selection_strategy": {
+              "default": "head",
+              "description": "Select the first valid rows, or a deterministic reservoir from scan_records.",
+              "enum": [
+                "head",
+                "reservoir"
+              ],
+              "type": "string"
+            },
+            "scan_records": {
+              "anyOf": [
+                {
+                  "maximum": 1000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Source rows to inspect for reservoir selection; defaults to max_records."
             }
           },
           "type": "object"
@@ -1439,7 +1493,8 @@
               "enum": [
                 "exact_match",
                 "normalized_exact",
-                "tool_calls"
+                "tool_calls",
+                "rubric"
               ],
               "type": "string"
             },
@@ -1503,6 +1558,49 @@
                 }
               ],
               "default": null
+            },
+            "rubric": {
+              "anyOf": [
+                {
+                  "maxLength": 4000,
+                  "minLength": 10,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Domain-specific grading criteria for rubric scoring."
+            },
+            "judge_model": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Separate Tinker model used to grade rubric evaluations."
+            },
+            "judge_renderer": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "judge_max_tokens": {
+              "default": 512,
+              "minimum": 64,
+              "type": "integer"
             },
             "idempotency_key": {
               "anyOf": [

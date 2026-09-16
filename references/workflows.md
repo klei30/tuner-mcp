@@ -8,7 +8,7 @@ These procedures compose native Tuner MCP tools. Skip a step only when the neces
 2. `models_list(live=true)`
 3. `dataset_search_hf`
 4. `dataset_probe_hf` with the returned full SHA
-5. `dataset_fetch_hf` with bounded records and validation split
+5. `dataset_fetch_hf` with bounded representative reservoir sampling and a validation split when the source ordering may be clustered
 6. `dataset_validate` and `dataset_inspect` for both prepared IDs
 7. `sample` the base model on one or more fixed prompts
 8. `training_plan` with an explicit step cap and checkpoint cadence
@@ -20,7 +20,7 @@ These procedures compose native Tuner MCP tools. Skip a step only when the neces
 14. `sample` the checkpoint with the identical baseline prompts and settings
 15. `evaluate` the base model and checkpoint on the same validation data
 16. Inspect with `evaluation_get` and `evaluation_failures`
-17. `compare_runs` only if fingerprints match
+17. `compare_runs` only if fingerprints match; set a meaningful minimum sample count and improvement threshold
 18. `usage_get` for the exact experiment window
 
 If the run exceeds the user's time or step bound, call `training_stop`. Report its local-cancellation semantics.
@@ -29,7 +29,7 @@ If the run exceeds the user's time or step bound, call `training_stop`. Report i
 
 Choose a chat-capable trainable model unless the user explicitly wants base-model continuation. Evaluate dataset language purity, assistant quality, diversity, licensing, duplication, length, and formatting. Mixed raw documents or OCR fragments may help continued pretraining but often make weak instruction SFT data.
 
-Use conversation data and train on assistant turns. Keep a held-out split. Compare the same language/domain prompts before and after. Exact match is appropriate only where the expected answer is deterministic; add task-specific qualitative inspection for open-ended language quality.
+Use conversation data and train on assistant turns. Keep a held-out split. Compare the same language/domain prompts before and after. Exact match is appropriate only where the expected answer is deterministic; use rubric scoring with a separate judge model for open-ended language or domain quality.
 
 ## CLI and tool-calling assistant
 

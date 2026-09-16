@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import uuid
 from contextlib import suppress
 from pathlib import Path
@@ -48,6 +49,57 @@ def _check_total_generation(settings: Settings, tokens: int, operation: str) -> 
             f"{operation} may generate {tokens} tokens, exceeding the aggregate limit.",
             context={"estimated_tokens": tokens, "limit": settings.max_total_generation_tokens},
         )
+
+
+def _training_workload(request: TrainingRequest, records: int) -> dict[str, Any] | None:
+    """Describe the exact batch semantics used by each typed Cookbook adapter."""
+    if isinstance(request, TrainRLRequest) or records <= 0:
+        return None
+    training = request.training
+    train_records = records
+    batching = "drop_last"
+    epochs = training.num_epochs
+    if isinstance(request, (TrainSFTRequest, TrainDistillRequest)):
+        train_records -= training.test_size
+    if isinstance(request, TrainDistillRequest):
+        epochs = 1
+        if request.distillation.mode == "on_policy":
+            batching = "partial_final_batch"
+            batches_per_epoch = math.ceil(train_records / training.batch_size)
+        else:
+            batches_per_epoch = train_records // training.batch_size
+    else:
+        batches_per_epoch = train_records // training.batch_size
+    natural_steps = batches_per_epoch * epochs
+    return {
+        "records": records,
+        "training_records": train_records,
+        "batch_size": training.batch_size,
+        "batching": batching,
+        "epochs_applied": epochs,
+        "batches_per_epoch": batches_per_epoch,
+        "natural_steps": natural_steps,
+        "expected_steps": min(training.max_steps, natural_steps),
+    }
+
+
+def _dataset_quality_warnings(transform: dict[str, Any]) -> list[str]:
+    warnings: list[str] = []
+    diversity = transform.get("prompt_diversity") or {}
+    if diversity.get("scanned", 0) >= 10 and diversity.get("top_share", 0) >= 0.5:
+        warnings.append(
+            "Dataset prompts are highly concentrated: the most common normalized prompt "
+            f"covers {diversity['top_share']:.1%} of {diversity['scanned']} inspected rows."
+        )
+    fields = (transform.get("metadata_distribution") or {}).get("fields", {})
+    for field in ("intent", "category", "domain"):
+        summary = fields.get(field) or {}
+        if summary.get("top_share", 0) >= 0.5 and summary.get("distinct", 0) > 1:
+            warnings.append(
+                f"Dataset {field} distribution is concentrated: the largest value covers "
+                f"{summary['top_share']:.1%} of tagged rows."
+            )
+    return warnings
 
 
 class Control:
@@ -107,6 +159,16 @@ class Control:
             )
         if isinstance(request, TrainDistillRequest):
             d = request.distillation
+            if t.num_epochs != 1:
+                raise TunerError(
+                    "INVALID_CONFIG",
+                    "Typed distillation currently executes one dataset pass; set num_epochs=1.",
+                )
+            if d.mode == "on_policy" and t.test_size:
+                raise TunerError(
+                    "INVALID_CONFIG",
+                    "On-policy distillation does not support training.test_size.",
+                )
             if (
                 d.max_tokens > s.max_generation_tokens
                 or d.group_size * t.batch_size > s.max_rollouts_per_step
@@ -144,7 +206,11 @@ class Control:
                 raise TunerError(
                     "DATASET_ERROR", "Holdout must leave at least one training record."
                 )
-            if report["records"] - t.test_size < t.batch_size:
+            requires_complete_batch = not (
+                isinstance(request, TrainDistillRequest)
+                and request.distillation.mode == "on_policy"
+            )
+            if requires_complete_batch and report["records"] - t.test_size < t.batch_size:
                 raise TunerError(
                     "DATASET_ERROR", "Dataset must leave at least one complete training batch."
                 )
@@ -186,6 +252,7 @@ class Control:
         return request.model_copy(update={"training": training})
 
     def plan(self, request: TrainingRequest, objective: str = "") -> dict[str, Any]:
+        explicit_training_fields = set(request.training.model_fields_set)
         source_request = request.model_dump(mode="json", exclude={"idempotency_key"})
         request = self.resolve_defaults(request)
         check = self.preflight(request)
@@ -218,6 +285,7 @@ class Control:
             if not preview["valid"]:
                 check["blockers"].append("Preview has no trainable tokens after truncation")
         snapshot = None
+        dataset_quality: dict[str, Any] = {}
         if not isinstance(request, TrainRLRequest):
             prepared = prepare_dataset(
                 PrepareDatasetRequest(dataset=request.dataset, max_records=1000000),
@@ -226,6 +294,72 @@ class Control:
             )
             payload["dataset"] = {"type": "prepared", "path": prepared["dataset_id"]}
             snapshot = prepared["sha256"]
+            dataset_quality = prepared.get("transform") or {}
+        warnings: list[str] = []
+        expected_steps: int | None = None
+        dataset_stats = check.get("dataset") or {}
+        records = dataset_stats.get("records") or 0
+        if records and not isinstance(request, TrainRLRequest):
+            workload = _training_workload(request, records)
+            assert workload is not None
+            workload_expected = int(workload["expected_steps"])
+            expected_steps = workload_expected
+            if request.training.max_steps > workload_expected:
+                warnings.append(
+                    f"training.max_steps ({request.training.max_steps}) will not bind: "
+                    f"{workload['natural_steps']} natural step(s) from "
+                    f"{workload['training_records']} training record(s), batch_size "
+                    f"{workload['batch_size']}, and {workload['epochs_applied']} applied epoch(s)."
+                )
+            if request.checkpointing.every_steps > workload_expected:
+                warnings.append(
+                    f"checkpointing.every_steps ({request.checkpointing.every_steps}) exceeds "
+                    f"expected ~{expected_steps} step(s); only the final checkpoint will be saved."
+                )
+        else:
+            workload = None
+        warnings.extend(_dataset_quality_warnings(dataset_quality))
+
+        recommended_lr: float | None = None
+        if cookbook_available() and not self.custom_adapter:
+            from tinker_cookbook import hyperparam_utils
+
+            try:
+                recommended_lr = hyperparam_utils.get_lr(request.model, is_lora=True)
+            except Exception:
+                recommended_lr = None
+        effective_lr = request.training.learning_rate
+        lr_ratio = None
+        if effective_lr is not None and recommended_lr is not None and recommended_lr != 0:
+            lr_ratio = effective_lr / recommended_lr
+        if (
+            "learning_rate" in explicit_training_fields
+            and lr_ratio is not None
+            and (lr_ratio < 0.25 or lr_ratio > 4)
+        ):
+            factor = max(lr_ratio, 1 / lr_ratio)
+            direction = "above" if lr_ratio > 1 else "below"
+            warnings.append(
+                f"Explicit learning_rate {effective_lr:g} is {factor:.1f}x {direction} the "
+                f"Cookbook recommendation {recommended_lr:g} for {request.model}."
+            )
+        hyperparameters = {
+            "learning_rate": {
+                "effective": effective_lr,
+                "source": "explicit" if "learning_rate" in explicit_training_fields else "cookbook",
+                "cookbook_recommended": recommended_lr,
+                "ratio_to_recommended": lr_ratio,
+            },
+            "lora_rank": {
+                "effective": request.training.lora_rank,
+                "source": "explicit" if "lora_rank" in explicit_training_fields else "default",
+                "default": 32,
+            },
+            "renderer": {
+                "effective": request.training.renderer,
+                "source": "explicit" if "renderer" in explicit_training_fields else "cookbook",
+            },
+        }
         stored = self.store.put_object(
             "plan",
             {
@@ -239,6 +373,11 @@ class Control:
                 "checks": checks,
                 "preview": preview,
                 "blockers": check["blockers"],
+                "warnings": warnings,
+                "expected_steps": expected_steps,
+                "workload_details": workload,
+                "dataset_quality": dataset_quality,
+                "hyperparameters": hyperparameters,
                 "workload": {
                     "max_steps": request.training.max_steps,
                     "estimated_cost": None,
@@ -443,9 +582,17 @@ class Control:
             len(request.benchmarks or [request.benchmark])
             * request.max_examples
             * request.num_samples
-            * request.max_tokens,
+            * (
+                request.max_tokens
+                + (request.judge_max_tokens if request.scoring == "rubric" else 0)
+            ),
             "Evaluation",
         )
+        if (
+            request.scoring == "rubric"
+            and request.judge_max_tokens > self.settings.max_generation_tokens
+        ):
+            raise TunerError("QUOTA_EXCEEDED", "Judge generation exceeds server limits.")
         dataset_hash = None
         if request.dataset is not None:
             from tuner.custom_evaluation import evaluation_rows
@@ -476,7 +623,18 @@ class Control:
         if created:
             path = self.settings.state_dir / "evaluations" / record["run_id"]
             path.mkdir(parents=True, exist_ok=True)
-            record = self.store.update(record["run_id"], log_path=str(path))
+            updates: dict[str, Any] = {"log_path": str(path)}
+            thinking_renderer = (
+                request.renderer is None or "disable_thinking" not in request.renderer
+            )
+            if request.max_tokens < 1024 and thinking_renderer:
+                updates["warnings"] = [
+                    "max_tokens is below 1024: generations may truncate before scoring, "
+                    "especially with thinking-enabled renderers that spend budget on "
+                    "reasoning traces. Consider a larger budget or an explicit "
+                    "disable_thinking renderer for instruction-following benchmarks."
+                ]
+            record = self.store.update(record["run_id"], **updates)
         return record, created
 
     async def execute(self, run_id: str, progress=None) -> dict[str, Any]:

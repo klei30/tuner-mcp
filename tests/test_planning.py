@@ -5,9 +5,106 @@ import pytest
 from fastmcp import Client
 from fastmcp_tasks.client import call_tool_task
 
+from tuner.control import _training_workload
 from tuner.errors import TunerError
 from tuner.mcp_server import create_server
+from tuner.models import TrainDistillRequest, TrainDPORequest, TrainSFTRequest
 from tuner.store import RunStore
+
+
+def test_plan_warns_when_run_is_shorter_than_configured(workflow):
+    control, _, request, path = workflow
+    path.write_text(
+        "".join('{"messages":[{"role":"assistant","content":"hi"}]}\n' for _ in range(90))
+    )
+    request.training.batch_size = 8
+    request.training.max_steps = 50
+    plan = control.plan(request)
+    assert plan["expected_steps"] == 11
+    assert any("max_steps (50) will not bind" in w for w in plan["warnings"])
+    assert any("every_steps (20) exceeds" in w for w in plan["warnings"])
+
+
+def test_plan_quiet_when_config_matches_data(workflow):
+    control, _, request, path = workflow
+    path.write_text(
+        "".join('{"messages":[{"role":"assistant","content":"hi"}]}\n' for _ in range(90))
+    )
+    request.training.batch_size = 8
+    request.training.max_steps = 5
+    request.checkpointing.every_steps = 5
+    plan = control.plan(request)
+    assert plan["expected_steps"] == 5
+    assert plan["warnings"] == []
+
+
+def test_workload_estimation_matches_method_batching():
+    dataset = {"type": "prepared", "path": "dataset_1"}
+    sft = TrainSFTRequest.model_validate(
+        {
+            "model": "example",
+            "dataset": dataset,
+            "training": {"batch_size": 8, "test_size": 10, "num_epochs": 2},
+        }
+    )
+    dpo = TrainDPORequest.model_validate(
+        {
+            "model": "example",
+            "dataset": dataset,
+            "training": {"batch_size": 8, "num_epochs": 2},
+        }
+    )
+    on_policy = TrainDistillRequest.model_validate(
+        {
+            "model": "example",
+            "dataset": dataset,
+            "training": {"batch_size": 8},
+            "distillation": {"teacher": {"model": "teacher"}, "mode": "on_policy"},
+        }
+    )
+    sft_workload = _training_workload(sft, 90)
+    dpo_workload = _training_workload(dpo, 90)
+    distill_workload = _training_workload(on_policy, 10)
+    assert sft_workload is not None and sft_workload["natural_steps"] == 20
+    assert dpo_workload is not None and dpo_workload["natural_steps"] == 22
+    assert distill_workload is not None and distill_workload["natural_steps"] == 2
+
+
+def test_distillation_rejects_unsupported_epochs(workflow):
+    control, _, _, path = workflow
+    request = TrainDistillRequest.model_validate(
+        {
+            "model": "example",
+            "dataset": {"type": "conversation_jsonl", "path": str(path)},
+            "training": {"batch_size": 1, "num_epochs": 2},
+            "distillation": {"teacher": {"model": "teacher"}},
+        }
+    )
+    with pytest.raises(TunerError, match="num_epochs=1"):
+        control.preflight(request)
+
+
+def test_plan_surfaces_dataset_concentration_and_parameter_sources(workflow):
+    control, _, _, path = workflow
+    path.write_text(
+        "".join(
+            '{"messages":[{"role":"user","content":"same request"},'
+            '{"role":"assistant","content":"answer"}]}\n'
+            for _ in range(20)
+        )
+    )
+    request = TrainSFTRequest.model_validate(
+        {
+            "model": "example",
+            "dataset": {"type": "conversation_jsonl", "path": str(path)},
+            "training": {"batch_size": 2, "learning_rate": 0.0001, "lora_rank": 8},
+            "checkpointing": {"every_steps": 5},
+        }
+    )
+    plan = control.plan(request)
+    assert any("highly concentrated" in warning for warning in plan["warnings"])
+    assert plan["hyperparameters"]["learning_rate"]["source"] == "explicit"
+    assert plan["hyperparameters"]["lora_rank"]["source"] == "explicit"
 
 
 def test_plan_and_expert_share_idempotency(workflow):

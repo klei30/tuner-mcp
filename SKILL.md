@@ -43,11 +43,11 @@ For Hugging Face data:
 1. Call `dataset_search_hf` with focused terms and a useful sort order.
 2. Select a result using task fit, schema, license, safety status, language/domain quality, likes/downloads, and gated status. Popularity alone is not a quality decision.
 3. Pass the returned repository and full 40-character commit SHA to `dataset_probe_hf`. Inspect configs, splits, sampled rows, and suggested mapping.
-4. Call `dataset_fetch_hf` with that pinned SHA and the exact mapping returned by the probe, including `tools_field` and `tool_calls_field` for structured tool datasets. Add the record bound, deterministic shuffle seed when useful, deduplication choice, and validation count.
+4. Call `dataset_fetch_hf` with that pinned SHA and the exact mapping returned by the probe, including `tools_field` and `tool_calls_field` for structured tool datasets. For a representative subset, use `selection_strategy="reservoir"`, set `scan_records` above `max_records`, and provide a deterministic `shuffle_seed`. Add deduplication and validation counts.
 5. Use the returned prepared dataset IDs with `dataset_validate` and `dataset_inspect`. Inspect actual samples for contamination, OCR damage, empty answers, language mismatch, unsafe content, and task mismatch.
 6. Call `dataset_render_preview` for the selected model/renderer or SFT/DPO plan. Resolve truncation, invalid loss masks, and blockers before training.
 
-`max_records` bounds the source scan before transformations. A validation split is carved from that bounded set. Preserve the returned fingerprint, source revision, mapping, hashes, train count, and validation count in the final report.
+With the default `head` strategy, `max_records` bounds the source scan. With `reservoir`, Tuner scans up to `scan_records` and retains `max_records` valid rows deterministically. A validation split is carved from the retained set. Review prompt diversity and available intent/category/domain/language distributions in the transform manifest. Preserve the returned fingerprint, source revision, mapping, hashes, train count, and validation count in the final report.
 
 When the user requires Hugging Face data, keep the training corpus on that pinned Hub source. Missing access, a gated repository, or an incompatible schema is a blocker to report and resolve; do not silently replace the requested source with `inline_records`. Create synthetic examples only when the user explicitly requests or accepts them, and report them as a separate source.
 
@@ -67,7 +67,7 @@ Before execution, make the plan explicit:
 - evaluation scope
 - known access, dependency, environment, and cost unknowns
 
-Review `checks`, `blockers`, resolved configuration, provenance, and estimates returned by the plan. Do not start a plan with blockers. Use a small pilot when the user requests a test. Planning estimates are not guaranteed dollar prices.
+Review `checks`, `blockers`, `warnings`, `workload_details`, resolved configuration, hyperparameter provenance, and estimates returned by the plan. Prefer the Cookbook learning-rate default unless the dataset or prior evidence justifies an override; investigate large deviations reported by the plan. Do not start a plan with blockers. Use a small pilot when the user requests a test. Planning estimates are not guaranteed dollar prices.
 
 After starting, retain both the local Tuner `run_id` and any remote Tinker training identifier. Poll with `training_get(source="local")`, then inspect `training_metrics`, `training_logs`, and `experiment_artifacts`. Use returned cursors and `artifact_path` for stable pagination. Avoid rapid polling.
 
@@ -77,9 +77,9 @@ After starting, retain both the local Tuner `run_id` and any remote Tinker train
 
 Use `sample` with exactly one target: a base `model` or a `checkpoint_path`. Use exactly one prompt form: `messages` or `token_ids`. Prefer the model-recommended renderer and keep identical prompts, renderer, sampling parameters, seed, and token bounds for before/after comparisons.
 
-Use `compute_logprobs` when token likelihood is the requested measurement. Use `evaluate` for named Cookbook benchmarks or one prepared validation dataset, never both in one request. Custom evaluation supports `exact_match`, `normalized_exact`, and `tool_calls`; exact match does not measure fluency or semantic quality.
+Use `compute_logprobs` when token likelihood is the requested measurement. Use `evaluate` for named Cookbook benchmarks or one prepared validation dataset, never both in one request. Custom evaluation supports `exact_match`, `normalized_exact`, `tool_calls`, and `rubric`. For open-ended domain quality, use a fixed rubric and separate `judge_model`; use the identical dataset, rubric, judge, renderer, and generation settings for baseline and candidate. Exact match does not measure fluency or semantic quality.
 
-Inspect an evaluation with `evaluation_get` and `evaluation_failures`. Call `compare_runs` only on evaluations with compatible fingerprints. Supply an explicit metric and direction when the default policy is unclear. Report regressions and uncertainty rather than declaring a winner from incompatible or tiny samples.
+Inspect an evaluation with `evaluation_get` and `evaluation_failures`. Call `compare_runs` only on evaluations with compatible fingerprints. Supply an explicit metric and direction plus meaningful `minimum_examples` and `minimum_delta`. Treat its `inconclusive` decision as a request for cleaner or stronger evidence; never promote a checkpoint from truncated, incompatible, tiny, or uncertainty-overlapping results.
 
 ## Checkpoints and exports
 

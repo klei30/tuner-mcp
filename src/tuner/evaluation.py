@@ -72,12 +72,39 @@ def metrics(record: dict[str, Any]) -> dict[str, float]:
     return values
 
 
+def _max_truncated(values: dict[str, float]) -> float:
+    """Largest truncated-example count across top-level and per-benchmark metrics.
+
+    Uses max (not sum) because top-level result fields duplicate the
+    per-benchmark payload.
+    """
+    return max(
+        (
+            value
+            for key, value in values.items()
+            if key == "num_truncated" or key.endswith("/num_truncated")
+        ),
+        default=0.0,
+    )
+
+
+def _example_count(values: dict[str, float], metric: str) -> float | None:
+    prefix = metric.rsplit("/", 1)[0] + "/" if "/" in metric else ""
+    return values.get(prefix + "num_examples")
+
+
 def compare_records(
     baseline: dict[str, Any],
     candidate: dict[str, Any],
     metric: str | None = None,
     direction: Literal["minimize", "maximize"] | None = None,
+    minimum_delta: float = 0.0,
+    minimum_examples: int = 30,
 ):
+    if minimum_delta < 0 or minimum_examples < 1:
+        raise TunerError(
+            "INVALID_CONFIG", "minimum_delta must be non-negative and minimum_examples positive."
+        )
     left, right = metrics(baseline), metrics(candidate)
     common = sorted(left.keys() & right.keys())
     fingerprint = baseline.get("result", {}).get("evaluation_fingerprint")
@@ -85,31 +112,93 @@ def compare_records(
         "evaluation_fingerprint"
     )
     winner = None
+    decision = "policy_required"
+    gate: dict[str, Any] = {
+        "minimum_delta": minimum_delta,
+        "minimum_examples": minimum_examples,
+    }
     note = "Select a metric and direction to choose a winner."
     if metric is not None or direction is not None:
         if metric not in common or direction is None:
             raise TunerError("INVALID_CONFIG", "Choose a common numeric metric and its direction.")
+        left_count = _example_count(left, metric)
+        right_count = _example_count(right, metric)
         if (
             not compatible
             or baseline["status"] != "completed"
             or candidate["status"] != "completed"
         ):
+            decision = "inconclusive"
             note = "Evaluation fingerprints are missing/incompatible, or evaluation is incomplete."
+        elif _max_truncated(left) > 0 or _max_truncated(right) > 0:
+            decision = "inconclusive"
+            note = "Comparison is inconclusive because at least one evaluation was truncated."
+        elif (
+            left_count is None
+            or right_count is None
+            or min(left_count, right_count) < minimum_examples
+        ):
+            decision = "inconclusive"
+            gate["baseline_examples"] = left_count
+            gate["candidate_examples"] = right_count
+            note = (
+                "Comparison is inconclusive because the selected metric has fewer than "
+                f"{minimum_examples} examples or does not report a sample count."
+            )
         elif left[metric] == right[metric]:
+            decision = "tie"
             note = "The selected metric is tied."
         else:
-            wins = (
-                right[metric] > left[metric]
-                if direction == "maximize"
-                else right[metric] < left[metric]
+            delta = right[metric] - left[metric]
+            gate["observed_delta"] = delta
+            gate["baseline_examples"] = left_count
+            gate["candidate_examples"] = right_count
+            if abs(delta) < minimum_delta:
+                decision = "inconclusive"
+                note = (
+                    "Comparison is inconclusive because the observed change is smaller than "
+                    "the configured minimum_delta."
+                )
+            else:
+                margin = None
+                if 0 <= left[metric] <= 1 and 0 <= right[metric] <= 1:
+                    standard_error = math.sqrt(
+                        left[metric] * (1 - left[metric]) / left_count
+                        + right[metric] * (1 - right[metric]) / right_count
+                    )
+                    margin = 1.96 * standard_error
+                    gate["approximate_95pct_margin"] = margin
+                if margin is not None and abs(delta) <= margin:
+                    decision = "inconclusive"
+                    note = (
+                        "Comparison is inconclusive: the observed change does not exceed an "
+                        "approximate 95% uncertainty margin."
+                    )
+                else:
+                    wins = (
+                        right[metric] > left[metric]
+                        if direction == "maximize"
+                        else right[metric] < left[metric]
+                    )
+                    winner = candidate["run_id"] if wins else baseline["run_id"]
+                    decision = "winner"
+                    note = "Winner selected using the explicit metric policy and evidence gates."
+    if metric is None and direction is None and "score" in common:
+        note += ' Suggest: metric="score", direction="maximize".'
+    for side, values in (("baseline", left), ("candidate", right)):
+        truncated = _max_truncated(values)
+        if truncated > 0:
+            note += (
+                f" Warning: {side} has {truncated:g} truncated example(s);"
+                " scores may reflect generation budget, not model quality."
             )
-            winner = candidate["run_id"] if wins else baseline["run_id"]
-            note = "Winner selected using the explicit metric policy."
     return {
         "baseline_run_id": baseline["run_id"],
         "candidate_run_id": candidate["run_id"],
         "compatible": compatible,
         "winner": winner,
+        "decision": decision,
+        "gate": gate,
         "note": note,
         "metrics": {
             key: {"baseline": left[key], "candidate": right[key], "delta": right[key] - left[key]}

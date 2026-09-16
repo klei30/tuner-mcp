@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import re
+import unicodedata
 import urllib.parse
 import urllib.request
 import uuid
@@ -484,7 +486,7 @@ def map_hf_row(
             )
         # Preserve native tool declarations and dataset provenance. Cookbook
         # renderers use the top-level tool list to build model-specific prefixes.
-        result = {"messages": messages}
+        result: dict[str, Any] = {"messages": messages}
         selected_tools_field = tools_field or (
             "tools"
             if row.get("tools") is not None
@@ -496,8 +498,13 @@ def map_hf_row(
             result["tools"] = _openai_tools(
                 row.get(selected_tools_field), index=index, field=selected_tools_field
             )
-        if "metadata" in row:
-            result["metadata"] = row["metadata"]
+        metadata = dict(row["metadata"]) if isinstance(row.get("metadata"), dict) else {}
+        for field in ("intent", "category", "domain", "language"):
+            value = row.get(field)
+            if isinstance(value, (str, int, float, bool)):
+                metadata.setdefault(field, value)
+        if metadata:
+            result["metadata"] = metadata
         return result
     if output_type == "preference_jsonl":
         prompt_field = preference_prompt_field or (
@@ -780,6 +787,104 @@ def fetch_hf_dataset(
     )
 
 
+_PROMPT_DIVERSITY_SAMPLE = 500
+
+
+def _normalize_prompt(text: str) -> str:
+    """Normalize prompts without discarding non-English writing systems."""
+    normalized = unicodedata.normalize("NFKC", text).casefold()
+    output: list[str] = []
+    in_number = False
+    for character in normalized:
+        category = unicodedata.category(character)
+        if character.isnumeric():
+            if not in_number:
+                output.append("#")
+            in_number = True
+        elif character.isalpha() or category.startswith("M"):
+            output.append(character)
+            in_number = False
+        else:
+            output.append(" ")
+            in_number = False
+    return re.sub(r"\s+", " ", "".join(output)).strip()
+
+
+def _prompt_diversity(selected: list[str], dtype: str) -> dict[str, Any] | None:
+    """Bounded, non-blocking sketch of first-user-prompt variety.
+
+    Informational only: narrow data can be intentional, so this never warns
+    or blocks. Counts distinct normalized first user prompts over at most
+    ``_PROMPT_DIVERSITY_SAMPLE`` staged rows (conversation data only).
+    """
+    if dtype != "conversation_jsonl":
+        return None
+    counts: dict[str, int] = {}
+    scanned = 0
+    for line in selected[:_PROMPT_DIVERSITY_SAMPLE]:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        user_text = next(
+            (
+                message.get("content")
+                for message in row.get("messages", [])
+                if message.get("role") == "user" and isinstance(message.get("content"), str)
+            ),
+            None,
+        )
+        if user_text is None:
+            continue
+        scanned += 1
+        key = _normalize_prompt(user_text)
+        counts[key] = counts.get(key, 0) + 1
+    if not scanned:
+        return None
+    return {
+        "scanned": scanned,
+        "distinct_normalized": len(counts),
+        "top_share": round(max(counts.values()) / scanned, 4),
+    }
+
+
+def _metadata_distribution(selected: list[str], dtype: str) -> dict[str, Any]:
+    """Summarize common HF intent/category metadata without exposing row contents."""
+    if dtype != "conversation_jsonl":
+        return {}
+    values: dict[str, dict[str, int]] = {
+        field: {} for field in ("intent", "category", "domain", "language")
+    }
+    scanned = 0
+    for line in selected[:_PROMPT_DIVERSITY_SAMPLE]:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        metadata = row.get("metadata")
+        if not isinstance(metadata, dict):
+            continue
+        scanned += 1
+        for field, counts in values.items():
+            value = metadata.get(field)
+            if isinstance(value, (str, int, float, bool)):
+                label = str(value).strip()
+                if label:
+                    counts[label] = counts.get(label, 0) + 1
+    result: dict[str, Any] = {"scanned": scanned, "fields": {}}
+    for field, counts in values.items():
+        if not counts:
+            continue
+        ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        total = sum(counts.values())
+        result["fields"][field] = {
+            "distinct": len(counts),
+            "top_share": round(ordered[0][1] / total, 4),
+            "top_values": [{"value": value, "count": count} for value, count in ordered[:10]],
+        }
+    return result
+
+
 def _write_prepared(
     rows,
     request: PrepareDatasetRequest,
@@ -794,11 +899,17 @@ def _write_prepared(
 
     folder = settings.state_dir / "datasets"
     folder.mkdir(parents=True, exist_ok=True)
-    selected = []
+    selected: list[str] = []
     seen = set()
-    scanned = duplicates = invalid = size = 0
+    scanned = eligible = duplicates = invalid = size = 0
     invalid_reasons: dict[str, int] = {}
-    for source_row in islice(rows, request.max_records):
+    source_limit = (
+        request.max_records
+        if request.selection_strategy == "head"
+        else request.scan_records or request.max_records
+    )
+    selection_rng = random.Random(request.shuffle_seed if request.shuffle_seed is not None else 0)
+    for source_row in islice(rows, source_limit):
         scanned += 1
         try:
             row = row_mapper(source_row, scanned) if row_mapper else source_row
@@ -822,15 +933,24 @@ def _write_prepared(
             invalid_reasons[exc.message] = invalid_reasons.get(exc.message, 0) + 1
             continue
         encoded = json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
-        size += len(encoded.encode())
-        if size > settings.max_dataset_bytes:
-            raise TunerError("DATASET_ERROR", "Preparation scan exceeds dataset byte limit.")
         identity = hashlib.sha256(encoded.encode()).hexdigest()
         if request.deduplicate and identity in seen:
             duplicates += 1
             continue
         seen.add(identity)
-        selected.append(encoded)
+        eligible += 1
+        encoded_size = len(encoded.encode())
+        if request.selection_strategy == "head" or len(selected) < request.max_records:
+            selected.append(encoded)
+            size += encoded_size
+        else:
+            position = selection_rng.randrange(eligible)
+            if position < request.max_records:
+                size -= len(selected[position].encode())
+                selected[position] = encoded
+                size += encoded_size
+        if size > settings.max_dataset_bytes:
+            raise TunerError("DATASET_ERROR", "Prepared dataset exceeds dataset byte limit.")
     if request.shuffle_seed is not None:
         random.Random(request.shuffle_seed).shuffle(selected)
     if not selected or request.validation_records >= len(selected):
@@ -839,13 +959,18 @@ def _write_prepared(
     manifest = {
         "version": 1,
         "scanned_records": scanned,
+        "eligible_records": eligible,
+        "selected_records": len(selected),
         "duplicates_removed": duplicates,
         "invalid_records_removed": invalid,
         "invalid_record_reasons": invalid_reasons,
         "source_sha256": source_hash,
-        "selection": "first_max_records_then_transform",
+        "selection": request.selection_strategy,
+        "scan_records": source_limit,
         "shuffle_seed": request.shuffle_seed,
         "validation_records": split,
+        "prompt_diversity": _prompt_diversity(selected, dtype),
+        "metadata_distribution": _metadata_distribution(selected, dtype),
     }
     files = []
     staged = []

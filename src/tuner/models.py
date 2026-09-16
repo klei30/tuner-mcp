@@ -196,7 +196,7 @@ class LogprobsRequest(StrictModel):
 class EvaluateRequest(StrictModel):
     target: SamplingTarget
     dataset: DatasetSpec | None = None
-    scoring: Literal["exact_match", "normalized_exact", "tool_calls"] = "exact_match"
+    scoring: Literal["exact_match", "normalized_exact", "tool_calls", "rubric"] = "exact_match"
     benchmark: str = "gsm8k"
     max_examples: int = Field(default=20, ge=1, le=100)
     max_tokens: int = Field(default=4096, ge=1)
@@ -206,12 +206,36 @@ class EvaluateRequest(StrictModel):
     benchmarks: list[str] = Field(default_factory=list, max_length=20)
     num_samples: int = Field(default=1, ge=1, le=32)
     system_prompt: str | None = None
+    rubric: str | None = Field(
+        default=None,
+        min_length=10,
+        max_length=4000,
+        description="Domain-specific grading criteria for rubric scoring.",
+    )
+    judge_model: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Separate Tinker model used to grade rubric evaluations.",
+    )
+    judge_renderer: str | None = None
+    judge_max_tokens: int = Field(default=512, ge=64)
     idempotency_key: str | None = Field(default=None, min_length=1, max_length=200)
 
     @model_validator(mode="after")
     def evaluation_source(self) -> EvaluateRequest:
         if self.dataset is not None and (self.benchmarks or self.benchmark != "gsm8k"):
             raise ValueError("Use a custom dataset or named benchmarks, exclusively")
+        if self.scoring == "rubric":
+            if self.dataset is None:
+                raise ValueError("rubric scoring requires a custom validation dataset")
+            if not self.rubric or not self.judge_model:
+                raise ValueError("rubric scoring requires rubric and judge_model")
+        elif (
+            self.rubric is not None
+            or self.judge_model is not None
+            or self.judge_renderer is not None
+        ):
+            raise ValueError("rubric and judge settings are only valid with scoring='rubric'")
         return self
 
 
@@ -340,6 +364,16 @@ class PrepareDatasetRequest(StrictModel):
         "conversation_jsonl"
     )
     max_records: int = Field(default=10000, ge=1, le=1000000)
+    selection_strategy: Literal["head", "reservoir"] = Field(
+        default="head",
+        description="Select the first valid rows, or a deterministic reservoir from scan_records.",
+    )
+    scan_records: int | None = Field(
+        default=None,
+        ge=1,
+        le=1000000,
+        description="Source rows to inspect for reservoir selection; defaults to max_records.",
+    )
 
     @model_validator(mode="after")
     def source(self) -> PrepareDatasetRequest:
@@ -354,6 +388,10 @@ class PrepareDatasetRequest(StrictModel):
             not self.hf_revision or re.fullmatch(r"[0-9a-fA-F]{40}", self.hf_revision) is None
         ):
             raise ValueError("Hugging Face imports require a pinned 40-character revision")
+        if self.selection_strategy == "reservoir" and (
+            self.scan_records is not None and self.scan_records < self.max_records
+        ):
+            raise ValueError("reservoir scan_records must be at least max_records")
         return self
 
 
@@ -408,6 +446,24 @@ class HFFetchRequest(StrictModel):
     chosen_field: str = Field(default="chosen", min_length=1)
     rejected_field: str = Field(default="rejected", min_length=1)
     max_records: int = Field(default=10000, ge=1, le=1000000)
+    selection_strategy: Literal["head", "reservoir"] = Field(
+        default="head",
+        description="Select the first valid rows, or a deterministic reservoir from scan_records.",
+    )
+    scan_records: int | None = Field(
+        default=None,
+        ge=1,
+        le=1000000,
+        description="Source rows to inspect for reservoir selection; defaults to max_records.",
+    )
+
+    @model_validator(mode="after")
+    def representative_selection_bounds(self) -> HFFetchRequest:
+        if self.selection_strategy == "reservoir" and (
+            self.scan_records is not None and self.scan_records < self.max_records
+        ):
+            raise ValueError("reservoir scan_records must be at least max_records")
+        return self
 
 
 class HFSearchRequest(StrictModel):

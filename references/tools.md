@@ -21,8 +21,8 @@ This catalog covers the 48 tools exposed by the current server. Runtime MCP sche
 |---|---|
 | `dataset_search_hf` | Search public Hugging Face datasets by query, author, tags, likes, downloads, or recency; returns pinned SHAs. |
 | `dataset_probe_hf` | Inspect configs, splits, sample rows, and compatible mappings for a pinned HF revision, including JSON-encoded OpenAI and raw xLAM tool-call schemas. |
-| `dataset_fetch_hf` | Stream a pinned HF split, map messages or structured `tools`/`tool_calls`, optionally deduplicate/shuffle/split, and persist prepared dataset IDs. |
-| `dataset_prepare` | Stage and validate an allowed local dataset, pinned HF dataset, or bounded inline synthetic records as persistent prepared data. |
+| `dataset_fetch_hf` | Stream a pinned HF split, map messages or structured `tools`/`tool_calls`, select by bounded head or deterministic reservoir sampling, optionally deduplicate/shuffle/split, and persist prepared dataset IDs. |
+| `dataset_prepare` | Stage and validate an allowed local dataset, pinned HF dataset, or bounded inline synthetic records; report multilingual prompt diversity and available metadata distributions. |
 | `dataset_validate` | Validate an allowed local/prepared dataset and report malformed record indexes. |
 | `dataset_inspect` | Validate and return a bounded sample for human quality inspection. |
 | `dataset_render_preview` | Render examples with a model/renderer or SFT/DPO plan and inspect tokens, truncation, tool prefixes, and loss masks. |
@@ -57,10 +57,10 @@ This catalog covers the 48 tools exposed by the current server. Runtime MCP sche
 |---|---|
 | `sample` | Generate from one base model or checkpoint with one message/token prompt and bounded sampling parameters. |
 | `compute_logprobs` | Compute prompt-token log probabilities for one base model or checkpoint. |
-| `evaluate` | Run a named Cookbook benchmark set or a custom prepared validation dataset and persist artifacts. |
+| `evaluate` | Run a named Cookbook benchmark set or a custom prepared validation dataset with exact, normalized, tool-call, or separate-model rubric grading. |
 | `evaluation_get` | Get normalized status, metrics, fingerprint, and metadata for an evaluation run. |
 | `evaluation_failures` | Page stored failed examples for diagnosis and corrective-data design. |
-| `compare_runs` | Compare compatible evaluation records with an optional explicit metric/direction policy. |
+| `compare_runs` | Compare compatible evaluations with explicit evidence gates; truncated, small, below-threshold, or statistically weak results are inconclusive. |
 
 ## Checkpoints
 

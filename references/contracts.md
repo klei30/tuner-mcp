@@ -44,6 +44,8 @@ Preference JSONL represents one context with chosen and rejected continuations. 
     "output_type": "conversation_jsonl",
     "message_field": "messages",
     "max_records": 100,
+    "selection_strategy": "reservoir",
+    "scan_records": 1000,
     "validation_records": 10,
     "deduplicate": true,
     "shuffle_seed": 30
@@ -84,8 +86,9 @@ Tuner canonicalizes them to a shared prompt plus `chosen` and `rejected`
 responses before DPO validation. It strips a repeated prompt from full-conversation
 chosen/rejected values. The default `invalid_record_policy: "error"` rejects dirty
 data; opt into `"skip"` to omit invalid rows and preserve counts and reasons in the
-dataset transform manifest. `max_records` continues to bound source rows scanned,
-so skipped rows reduce the prepared count.
+dataset transform manifest. The default `head` strategy scans `max_records` source
+rows. `reservoir` scans up to `scan_records`, retains `max_records` valid rows with
+the supplied seed, and reports selection and metadata-distribution statistics.
 
 ## Typed SFT plan
 
@@ -109,7 +112,7 @@ so skipped rows reduce the prepared count.
 }
 ```
 
-Training config also supports positive `learning_rate`, `num_epochs`, `max_length`, `linear|cosine|constant` schedule, Adam settings, optional load checkpoint, W&B fields, and tracing. Checkpointing supports step/token/time cadence, TTLs, rolling saves, and asynchronous periodic saves. Use only fields present in the live schema.
+Training config also supports positive `learning_rate`, `num_epochs`, `max_length`, `linear|cosine|constant` schedule, Adam settings, optional load checkpoint, W&B fields, and tracing. Plans expose the effective values, their explicit/default source, method-specific natural step count after holdouts, and the Cookbook learning-rate recommendation. Typed distillation supports one epoch. Checkpointing supports step/token/time cadence, TTLs, rolling saves, and asynchronous periodic saves. Use only fields present in the live schema.
 
 Start the reviewed plan:
 
@@ -210,7 +213,7 @@ Custom held-out evaluation:
 }
 ```
 
-Named benchmarks omit `dataset` and use `benchmark` or `benchmarks`. A custom dataset and named benchmark selection are mutually exclusive. `tool_calls` scoring checks structured calls; `normalized_exact` normalizes surface form; neither substitutes for task-specific human or semantic grading.
+Named benchmarks omit `dataset` and use `benchmark` or `benchmarks`. A custom dataset and named benchmark selection are mutually exclusive. `tool_calls` scoring checks structured calls and `normalized_exact` normalizes surface form. For open-ended quality, set `scoring: "rubric"`, `rubric`, `judge_model`, optional `judge_renderer`, and `judge_max_tokens`; Tinker runs the separate judge remotely. Compare identical evaluation fingerprints with an explicit metric, direction, minimum sample count, and minimum delta. The result remains inconclusive when truncation or approximate uncertainty prevents a reliable choice.
 
 ## Resume and stop
 

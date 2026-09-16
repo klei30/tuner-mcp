@@ -46,6 +46,27 @@ async def test_mcp_schema_contract(tmp_path):
     assert "recipe_plan" in tools and "recipe_start" in tools
 
 
+async def test_task_tools_match_background_task_decorators(tmp_path: Path) -> None:
+    settings = Settings(state_dir=tmp_path / "state", allowed_roots=(tmp_path,))
+    server = create_server(settings)
+    async with Client(server) as client:
+        task_tools = set(
+            (await client.call_tool("capabilities_get", {"live": False})).data["task_tools"]
+        )
+        assert task_tools == {
+            "train_sft",
+            "train_dpo",
+            "train_rl",
+            "train_distill",
+            "evaluate",
+        }
+        # Prompt-return background entry points stay out of task_tools but
+        # remain documented via background_submission.
+        assert "training_start" not in task_tools
+        assert "recipe_start" not in task_tools
+        assert "checkpoint_export" not in task_tools
+
+
 async def test_live_tool_fails_safely_without_key(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("TINKER_API_KEY", raising=False)
     server = create_server(Settings(state_dir=tmp_path / "state", allowed_roots=(tmp_path,)))
