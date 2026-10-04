@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 keywords = ["mcp", "tinker", "finetuning", "llm", "post-training"]
 dependencies = [
-    "datasets>=4.5,<5",
+    "datasets>=4.5,<6",
     "fastmcp[tasks]==4.0.3",
     "ifbench",
     "pydantic>=2.11,<3",
